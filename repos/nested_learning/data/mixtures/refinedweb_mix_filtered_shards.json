@@ -1,0 +1,55 @@
+{
+  "manifest": "configs/data/refinedweb_mixture_filtered.yaml",
+  "stats": [
+    {
+      "name": "refinedweb",
+      "dataset": "text",
+      "subset": null,
+      "records": 2000,
+      "sequences": 1913,
+      "tokens": 979944,
+      "shards": 4,
+      "output_dir": "data/shards/refinedweb_filtered"
+    },
+    {
+      "name": "wikipedia",
+      "dataset": "text",
+      "subset": null,
+      "records": 1000,
+      "sequences": 1632,
+      "tokens": 835694,
+      "shards": 4,
+      "output_dir": "data/shards/wikipedia_filtered"
+    },
+    {
+      "name": "c4",
+      "dataset": "text",
+      "subset": null,
+      "records": 1000,
+      "sequences": 764,
+      "tokens": 391261,
+      "shards": 2,
+      "output_dir": "data/shards/c4_filtered"
+    },
+    {
+      "name": "redpajama",
+      "dataset": "text",
+      "subset": null,
+      "records": 1000,
+      "sequences": 1019,
+      "tokens": 521840,
+      "shards": 2,
+      "output_dir": "data/shards/redpajama_filtered"
+    },
+    {
+      "name": "code",
+      "dataset": "text",
+      "subset": null,
+      "records": 1000,
+      "sequences": 2355,
+      "tokens": 1205828,
+      "shards": 5,
+      "output_dir": "data/shards/code_filtered"
+    }
+  ]
+}
