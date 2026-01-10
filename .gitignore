@@ -1,5 +1,20 @@
 temp/
 
+build/
+dist/
+*.egg-info/
+**/__pycache__/
+
+**/.ipynb_checkpoints
+**/.ipynb_checkpoints/**
+
+# Ignore swap files
+*.swp
+
+# Ignore vscode directory
+.vscode/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
