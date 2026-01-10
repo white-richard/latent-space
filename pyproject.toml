@@ -7,25 +7,16 @@ name = "latent_space"
 version = "0.1.0"
 description = "Random ML/DL code I've written or gathered."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
-authors = [{ name = "R", email = "R@R.com" }]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
-  "License :: OSI Approved :: MIT License",
-  "Typing :: Typed"
-]
-dependencies = [
-  "torch",
-  "timm",
-  "numpy",
-]
+authors = [{ name = "R", email = "R@example.com" }]
+dependencies = []
 
 # Optional “feature” installs: pip install .[excel,plot]
 # [project.optional-dependencies]
 # excel = ["pandas>=2.2"]
 # plot  = ["matplotlib>=3.8"]
+# dev  = ["pytest>=7.4", "ruff>=0.6.8", "mypy>=1.11", "types-PyYAML"]
 
 # ---- setuptools config for src/ layout ----
 [tool.setuptools]
@@ -40,19 +31,19 @@ include = ["latent_space*"]
 line-length = 100
 select = ["E","F","I","B","UP","PYI"]
 exclude = ["tests/fixtures"]
-target-version = "py39"
+target-version = "py310"
 
 [tool.black]
 line-length = 100
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-q"
+addopts = "-ra -q"
 testpaths = ["tests"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = true
 mypy_path = "src"
 packages = ["latent_space"]
