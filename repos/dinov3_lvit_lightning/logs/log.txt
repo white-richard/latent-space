@@ -1,0 +1,7 @@
+I20260110 13:24:20 27901 dinov3 torch_distributed_wrapper.py:255] PyTorch distributed environment: manual job using 127.0.0.1:45023 (rank=0, world size=1)
+I20260110 13:24:21 27901 fairvit config.py:209] git:
+  sha: N/A, status: clean, branch: N/A
+
+I20260110 13:24:21 27901 fairvit config.py:213] conda env name: None
+I20260110 13:24:21 27901 fairvit config.py:214] conda env path: None
+I20260110 13:24:21 27901 fairvit config.py:215] python path: ['/home/richiewhite/.code/latent-space/repos/dinov3_lvit_lightning/dinov3/dinov3/models/dinov3', '/home/richiewhite/.code/latent-space/repos/dinov3_lvit_lightning', '/home/richiewhite/.code/latent-space/repos/dinov3_lvit_lightning', '/home/richiewhite/.local/share/uv/python/cpython-3.11.14-linux-x86_64-gnu/lib/python311.zip', '/home/richiewhite/.local/share/uv/python/cpython-3.11.14-linux-x86_64-gnu/lib/python3.11', '/home/richiewhite/.local/share/uv/python/cpython-3.11.14-linux-x86_64-gnu/lib/python3.11/lib-dynload', '/home/richiewhite/.code/latent-space/.venv/lib/python3.11/site-packages', '/home/richiewhite/.code/hypercore', '/home/richiewhite/.code/latent-space/.venv/lib/python3.11/site-packages/setuptools/_vendor', '/tmp/tmpbla2pzfo']
