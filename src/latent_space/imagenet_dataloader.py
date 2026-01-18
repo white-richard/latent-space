@@ -1,19 +1,17 @@
-from typing import Dict, List
 from collections import defaultdict
 
 import torch
-from torch.utils.data import Subset
 import torchvision
-from torchvision import transforms
+from torch.utils.data import Subset
 
 
 def get_imagenet_loaders(
     data_dir: str,
     batch_size: int = 32,
     num_workers: int = 4,
-    train_transforms: List = None,
+    train_transforms: list = None,
     limit_data: bool = False,
-) -> Dict[str, torch.utils.data.DataLoader]:
+) -> dict[str, torch.utils.data.DataLoader]:
     train_imagenet_data = torchvision.datasets.ImageNet(
         data_dir,
         split="train",
