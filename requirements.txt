@@ -11,3 +11,5 @@ jupyter
 ipykernel
 ollama
 python-lsp-server
+pacmap
+timm
