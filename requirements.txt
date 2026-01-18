@@ -9,3 +9,5 @@ umap-learn
 tqdm
 jupyter
 ipykernel
+ollama
+python-lsp-server
