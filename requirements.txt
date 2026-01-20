@@ -13,3 +13,4 @@ ollama
 python-lsp-server
 pacmap
 timm
+pytest

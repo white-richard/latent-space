@@ -1,6 +1,7 @@
 temp/
 model_weights/
 data/
+experiments/
 
 build/
 dist/
