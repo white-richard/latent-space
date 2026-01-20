@@ -20,6 +20,7 @@ class WHDScheduler(LambdaLR):
         optimizer: Optimizer,
         *,
         n_iterations: int,  # total number of iterations for the FULL run
+        frac_decay: float | None = 0.2,  # fraction of current iterations to decay over
         final_lr_factor: float = 0.1,  # multiplier at the very end
         frac_warmup: float = 0.1,
         init_div_factor: float = 100.0,
@@ -32,9 +33,14 @@ class WHDScheduler(LambdaLR):
         self.frac_warmup = frac_warmup
         self.init_div_factor = init_div_factor
         self.decay_type = decay_type
+        self.frac_decay = frac_decay
+
+        if self.frac_decay is not None and not (0.0 < self.frac_decay <= 1.0):
+            raise ValueError("frac_decay must be in (0, 1] or None")
 
         self.n_warmup = int(self.frac_warmup * self.n_iterations)
         self.cooldown_start_step: int | None = None  # when decay begins
+        self.cooldown_end_step: int | None = None  # when decay ends
 
         def lr_lambda(step: int) -> float:
             return self._multiplier(step)
@@ -55,10 +61,17 @@ class WHDScheduler(LambdaLR):
         if step is None:
             step = self.last_epoch + 1
 
-        # optional: don't start cooldown before warmup finishes
+        # don't start cooldown before warmup finishes
         step = max(step, self.n_warmup)
-
         self.cooldown_start_step = step
+
+        if self.frac_decay is None:
+            end = self.n_iterations
+        else:
+            decay_len = max(1, int(math.ceil(self.frac_decay * step)))
+            end = step + decay_len
+
+        self.cooldown_end_step = min(end, self.n_iterations)
 
     def _multiplier(self, step: int) -> float:
         # Past the planned end: clamp to final factor
@@ -74,40 +87,51 @@ class WHDScheduler(LambdaLR):
         if self.cooldown_start_step is None or step < self.cooldown_start_step:
             return 1.0
 
-        # Cooldown: decay from cooldown_start_step -> n_iterations
-        decay_len = max(1, self.n_iterations - self.cooldown_start_step)  # remaining steps
+        # If cooldown end is reached, stick at final factor
+        assert self.cooldown_end_step is not None
+        if step >= self.cooldown_end_step:
+            return self.final_lr_factor
+
+        # Cooldown progress
+        decay_len = max(1, self.cooldown_end_step - self.cooldown_start_step)
         t = (step - self.cooldown_start_step) / decay_len
         t = min(max(t, 0.0), 1.0)
 
-        return self._decay_value(t)
+        return self._scaled_decay_value(t)
 
-    def _decay_value(self, t: float) -> float:
-        f = self.final_lr_factor
+    def _scaled_decay_value(self, t: float) -> float:
+        """Scale decay curve so it goes from 1 -> final_lr_factor."""
+        raw = self._decay_unit(t)  # 1 -> 0
+        return self.final_lr_factor + (1.0 - self.final_lr_factor) * raw
 
+    def _decay_unit(self, t: float) -> float:
+        """Returns a curve that starts at 1 when t=0 and ends at 0 when t=1."""
         if self.decay_type == "linear":
-            return f + (1 - f) * (1 - t)
+            return 1 - t
         if self.decay_type == "exp":
-            return f**t
+            k = 5.0  # shape; larger = faster drop early
+            return (math.exp(-k * t) - math.exp(-k)) / (1 - math.exp(-k))
         if self.decay_type == "cosine":
-            return f + (1 - f) * (1 + math.cos(math.pi * t)) * 0.5
+            return (1 + math.cos(math.pi * t)) * 0.5
         if self.decay_type == "mirror_cosine":
-            cosine_value = f + (1 - f) * (1 + math.cos(math.pi * t)) * 0.5
-            linear_value = f + (1 - f) * (1 - t)
+            cosine_value = (1 + math.cos(math.pi * t)) * 0.5
+            linear_value = 1 - t
             return linear_value * 2 - cosine_value
         if self.decay_type == "square":
-            return f + (1 - f) * (1 - t**2)
+            return 1 - t**2
         if self.decay_type == "1-sqrt":
-            return f + (1 - f) * (1 - math.sqrt(t))
-
+            return 1 - math.sqrt(t)
         raise ValueError(f"Unknown decay_type: {self.decay_type}")
 
     def state_dict(self) -> dict[str, Any]:
         sd = super().state_dict()
         sd["cooldown_start_step"] = self.cooldown_start_step
+        sd["cooldown_end_step"] = self.cooldown_end_step
         return sd
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         self.cooldown_start_step = state_dict.pop("cooldown_start_step", None)
+        self.cooldown_end_step = state_dict.pop("cooldown_end_step", None)
         super().load_state_dict(state_dict)
 
 
@@ -204,7 +228,7 @@ if __name__ == "__main__":
     optimizer.param_groups[0]["lr"] = base_lr
     optimizer.param_groups[0].pop("initial_lr", None)  # optional
 
-    scheduler = make_scheduler(optimizer, "sqrt")
+    scheduler = make_scheduler(optimizer, "1-sqrt")
 
     print(f"\nInitial LR: {optimizer.param_groups[0]['lr']:.6f}")
     for step in range(100):
