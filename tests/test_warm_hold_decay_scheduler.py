@@ -1,4 +1,3 @@
-
 import math
 
 import pytest
@@ -22,6 +21,7 @@ def make_sched(
     decay_type="1-sqrt",
     frac_decay=0.2,
     last_epoch=-1,
+    auto_trigger=False,
 ):
     return WHDScheduler(
         opt,
@@ -32,12 +32,14 @@ def make_sched(
         init_div_factor=init_div,
         decay_type=decay_type,
         last_epoch=last_epoch,
+        auto_trigger_cooldown=auto_trigger,
     )
 
 
 # ----------------------------
 # Pure multiplier behavior tests
 # ----------------------------
+
 
 @pytest.mark.parametrize("decay_type", ["linear", "cosine", "square", "mirror_cosine", "1-sqrt"])
 def test_warmup_shape_and_bounds(decay_type):
@@ -99,6 +101,75 @@ def test_hold_is_constant_until_cooldown():
     # pick a few steps after warmup, before cooldown
     for s in [n_warmup, n_warmup + 1, n_warmup + 50]:
         assert abs(sched._multiplier(s) - 1.0) < 1e-12
+
+
+def test_auto_trigger_cooldown_when_enabled():
+    base_lr = 1e-3
+    n_iters = 500
+    frac_decay = 0.2
+
+    opt = make_optimizer(lr=base_lr)
+    sched = make_sched(
+        opt,
+        n_iters=n_iters,
+        frac_warmup=0.0,
+        final_factor=0.1,
+        decay_type="linear",
+        frac_decay=frac_decay,
+        auto_trigger=True,
+    )
+
+    auto_step = sched.auto_trigger_step
+    assert auto_step is not None
+    assert auto_step == int((1 - frac_decay) * n_iters)
+    assert sched.cooldown_start_step is None
+
+    sched._multiplier(auto_step - 1)
+    assert sched.cooldown_start_step is None
+
+    sched._multiplier(auto_step)
+    assert sched.cooldown_start_step == auto_step
+    assert sched.cooldown_end_step is not None
+    assert sched.cooldown_end_step > auto_step
+    assert abs(sched._multiplier(sched.cooldown_end_step) - sched.final_lr_factor) < 1e-12
+
+
+def test_auto_trigger_not_started_when_disabled():
+    base_lr = 1e-3
+    n_iters = 500
+    frac_decay = 0.3
+
+    opt = make_optimizer(lr=base_lr)
+    sched = make_sched(
+        opt,
+        n_iters=n_iters,
+        frac_warmup=0.0,
+        final_factor=0.1,
+        decay_type="linear",
+        frac_decay=frac_decay,
+        auto_trigger=False,
+    )
+
+    step = int((1 - frac_decay) * n_iters)
+    sched._multiplier(step)
+    assert sched.cooldown_start_step is None
+
+    sched.trigger_cooldown(step=step)
+    assert sched.cooldown_start_step == step
+
+
+def test_auto_trigger_requires_frac_decay():
+    opt = make_optimizer()
+    with pytest.raises(ValueError, match="auto_trigger_cooldown requires frac_decay to be set"):
+        make_sched(
+            opt,
+            n_iters=100,
+            frac_warmup=0.0,
+            final_factor=0.1,
+            decay_type="linear",
+            frac_decay=None,
+            auto_trigger=True,
+        )
 
 
 @pytest.mark.parametrize("decay_type", ["linear", "cosine", "square", "mirror_cosine", "1-sqrt"])
@@ -194,6 +265,7 @@ def test_step_ge_n_iterations_clamps_to_final():
 # Decay type coverage
 # ----------------------------
 
+
 @pytest.mark.parametrize("decay_type", ["linear", "cosine", "square", "mirror_cosine", "1-sqrt"])
 def test_decay_is_nonincreasing_during_cooldown(decay_type):
     """
@@ -223,7 +295,9 @@ def test_decay_is_nonincreasing_during_cooldown(decay_type):
     assert abs(vals[-1] - final_factor) < 1e-12
 
 
-@pytest.mark.xfail(reason="Current exp implementation depends on final_lr_factor and is double-scaled; fix exp unit curve.")
+@pytest.mark.xfail(
+    reason="Current exp implementation depends on final_lr_factor and is double-scaled; fix exp unit curve."
+)
 def test_exp_decay_reaches_final_factor_at_end():
     """
     This is the regression test that will fail until 'exp' is fixed to be compatible
@@ -251,6 +325,7 @@ def test_exp_decay_reaches_final_factor_at_end():
 # ----------------------------
 # Checkpointing / resume behavior
 # ----------------------------
+
 
 def test_state_dict_roundtrip_preserves_cooldown_state():
     base_lr = 1e-3
@@ -329,6 +404,7 @@ def test_start_cooldown_immediately_sets_some_start_and_end():
 # ----------------------------
 # Integration smoke test (scheduler.step)
 # ----------------------------
+
 
 def test_integration_step_runs_and_lr_changes_when_cooldown_triggered():
     """
