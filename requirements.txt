@@ -14,3 +14,8 @@ python-lsp-server
 pacmap
 timm
 pytest
+einops
+numba>=0.57
+llvmlite>=0.40
+lightning
+rich
