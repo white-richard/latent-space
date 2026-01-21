@@ -13,6 +13,8 @@ class WHDScheduler(LambdaLR):
     - If cooldown NOT triggered: after warmup, multiplier stays 1.0 until n_iterations.
     - If cooldown triggered at step S: decay starts at S and ends at n_iterations
       with final_lr_factor.
+    - If `auto_trigger_cooldown` is True, cooldown begins automatically once
+      (1 - frac_decay) * n_iterations has been reached (still respecting warmup).
     """
 
     def __init__(
@@ -27,6 +29,7 @@ class WHDScheduler(LambdaLR):
         decay_type: str = "1-sqrt",  # ['linear','exp','cosine','mirror_cosine','square','1-sqrt']
         last_epoch: int = -1,
         start_cooldown_immediately: bool = False,
+        auto_trigger_cooldown: bool = False,  # auto decay at (1 - frac_decay) * n_iterations
     ):
         self.n_iterations = n_iterations
         self.final_lr_factor = final_lr_factor
@@ -34,13 +37,26 @@ class WHDScheduler(LambdaLR):
         self.init_div_factor = init_div_factor
         self.decay_type = decay_type
         self.frac_decay = frac_decay
+        self.auto_trigger_cooldown = auto_trigger_cooldown
 
         if self.frac_decay is not None and not (0.0 < self.frac_decay <= 1.0):
             raise ValueError("frac_decay must be in (0, 1] or None")
+        if self.auto_trigger_cooldown and self.frac_decay is None:
+            raise ValueError("auto_trigger_cooldown requires frac_decay to be set")
 
         self.n_warmup = int(self.frac_warmup * self.n_iterations)
         self.cooldown_start_step: int | None = None  # when decay begins
         self.cooldown_end_step: int | None = None  # when decay ends
+        self.auto_trigger_step: int | None = None
+
+        if self.auto_trigger_cooldown:
+            if self.n_iterations <= 0:
+                raise ValueError("auto_trigger_cooldown requires n_iterations > 0")
+            planned_fraction = max(0.0, min(1.0, 1.0 - self.frac_decay))
+            latest_valid_step = max(0, self.n_iterations - 1)
+            computed_step = int(math.floor(planned_fraction * self.n_iterations))
+            computed_step = max(0, min(latest_valid_step, computed_step))
+            self.auto_trigger_step = max(self.n_warmup, computed_step)
 
         def lr_lambda(step: int) -> float:
             return self._multiplier(step)
@@ -73,6 +89,15 @@ class WHDScheduler(LambdaLR):
 
         self.cooldown_end_step = min(end, self.n_iterations)
 
+    def _maybe_auto_trigger(self, step: int) -> None:
+        if (
+            self.auto_trigger_cooldown
+            and self.cooldown_start_step is None
+            and self.auto_trigger_step is not None
+            and step >= self.auto_trigger_step
+        ):
+            self.trigger_cooldown(step=step)
+
     def _multiplier(self, step: int) -> float:
         # Past the planned end: clamp to final factor
         if step >= self.n_iterations:
@@ -82,6 +107,8 @@ class WHDScheduler(LambdaLR):
         if self.n_warmup > 0 and step < self.n_warmup:
             x = step / self.n_warmup
             return x + (1 - x) / self.init_div_factor
+
+        self._maybe_auto_trigger(step)
 
         # Hold forever unless cooldown triggered
         if self.cooldown_start_step is None or step < self.cooldown_start_step:
