@@ -1,3 +1,14 @@
+"""
+Implementation of mHC (https://arxiv.org/pdf/2512.24880)
+from (https://github.com/tokenbender/mHC-manifold-constrained-hyper-connections/blob/main/hyper_connections/hyper_connections.py)
+x_{l+1} = H_l^{res} x_l + H_l^{post,T} F(H_l^{pre} x_l, W_l)
+
+with the key constraints:
+    H_res: doubly stochastic (Birkhoff polytope; entries ≥ 0, rows sum to 1,
+        cols sum to 1), via Sinkhorn-Knopp.
+    H_pre, H_post: non-negative mixing maps.
+"""
+
 from collections.abc import Callable
 from functools import partial
 from random import randrange
@@ -5,10 +16,11 @@ from random import randrange
 import torch
 from einops import einsum, rearrange
 from einops.layers.torch import Rearrange, Reduce
-from hyper_connections.hyper_connections import Residual, StreamEmbed
 from torch import nn
 from torch.nn import Module
 from torch.utils._pytree import tree_flatten, tree_unflatten
+
+from .hyper_connections import Residual, StreamEmbed
 
 """
 ein notation:

@@ -1,18 +1,17 @@
 from __future__ import annotations
-from typing import Callable
 
+import math
+from collections.abc import Callable
 from functools import partial
 from random import randrange
-import math
 
 import torch
-from torch import nn, cat
 import torch.nn.functional as F
-from torch.nn import Module, Sequential
-from torch.utils._pytree import tree_flatten, tree_unflatten
-
-from einops import rearrange, repeat, reduce, einsum
+from einops import einsum, rearrange, reduce, repeat
 from einops.layers.torch import Rearrange, Reduce
+from torch import cat, nn
+from torch.nn import Module
+from torch.utils._pytree import tree_flatten, tree_unflatten
 
 """
 ein notation:
@@ -50,9 +49,7 @@ def add(x, y):
 def sinkhorn_log(logits, num_iters=10, tau=0.05):
     n = logits.shape[-1]
     Z = logits / tau
-    log_marginal = torch.full(
-        (n,), -math.log(n), device=logits.device, dtype=logits.dtype
-    )
+    log_marginal = torch.full((n,), -math.log(n), device=logits.device, dtype=logits.dtype)
 
     u = torch.zeros(n, device=Z.device, dtype=Z.dtype)
     v = torch.zeros(n, device=Z.device, dtype=Z.dtype)
@@ -85,9 +82,7 @@ def zeropower_via_newtonschulz(X, steps=5, eps=1e-7, coeffs=(3.0, -3.2, 1.2)):
     return X
 
 
-def orthostochastic_project(
-    logits, ns_steps=5, ns_eps=1e-7, ns_coeffs=(3.0, -3.2, 1.2)
-):
+def orthostochastic_project(logits, ns_steps=5, ns_eps=1e-7, ns_coeffs=(3.0, -3.2, 1.2)):
     O = zeropower_via_newtonschulz(logits, steps=ns_steps, eps=ns_eps, coeffs=ns_coeffs)
     return O.square()
 
@@ -108,9 +103,7 @@ def get_expand_reduce_stream_functions(
 
         expand_fn = StreamEmbed(num_streams, dim, expand_to_streams=True)
     else:
-        expand_fn = Reduce(
-            pattern="b ... -> (b s) ...", reduction="repeat", s=num_streams
-        )
+        expand_fn = Reduce(pattern="b ... -> (b s) ...", reduction="repeat", s=num_streams)
 
     reduce_fn = Reduce(pattern="(b s) ... -> b ...", reduction="sum", s=num_streams)
 
@@ -378,9 +371,7 @@ class HyperConnections(Module):
             residuals_mixed_source = maybe_transformed_residuals
 
             if self.channel_first:
-                residuals_mixed_source = rearrange(
-                    residuals_mixed_source, "b d ... -> b ... d"
-                )
+                residuals_mixed_source = rearrange(residuals_mixed_source, "b d ... -> b ... d")
 
             residuals_mixed_source = self.split_fracs(residuals_mixed_source)
             residuals_mixed_source = rearrange(
@@ -395,18 +386,14 @@ class HyperConnections(Module):
                     ns_coeffs=self.ns_coeffs,
                 )
             else:
-                H_res = sinkhorn_log(
-                    self.H_res_logits, self.sinkhorn_iters, self.sinkhorn_tau
-                )
+                H_res = sinkhorn_log(self.H_res_logits, self.sinkhorn_iters, self.sinkhorn_tau)
             H_pre = F.softmax(self.H_pre_logits, dim=-1)
 
             H_post = None
             if self.add_branch_out_to_residual:
                 H_post = F.softmax(self.H_post_logits, dim=-1)
 
-            residuals_mixed = einsum(
-                H_res, residuals_mixed_source, "s t, ... s d -> ... t d"
-            )
+            residuals_mixed = einsum(H_res, residuals_mixed_source, "s t, ... s d -> ... t d")
             branch_input = einsum(H_pre, residuals, "s, ... s d -> ... d")
 
             if getattr(self, "collect_stats", False):
@@ -536,9 +523,7 @@ class HyperConnections(Module):
 
             return self.dropout(output)
 
-        output = einsum(
-            branch_output, beta, "b ... f1 d, b ... f1 s f2 -> b ... f2 s d"
-        )
+        output = einsum(branch_output, beta, "b ... f1 d, b ... f1 s f2 -> b ... f2 s d")
 
         output = rearrange(output, "b ... s d -> (b s) ... d")
 
@@ -614,24 +599,16 @@ class StreamEmbed(Module):
             residuals = repeat(residuals, "b ... -> (b s) ...", s=self.num_streams)
 
         if self.channel_first:
-            residuals = rearrange(
-                residuals, "(b s) d ... -> b ... s d", s=self.num_streams
-            )
+            residuals = rearrange(residuals, "(b s) d ... -> b ... s d", s=self.num_streams)
         else:
-            residuals = rearrange(
-                residuals, "(b s) ... d -> b ... s d", s=self.num_streams
-            )
+            residuals = rearrange(residuals, "(b s) ... d -> b ... s d", s=self.num_streams)
 
         residuals = residuals + self.stream_embed
 
         if self.channel_first:
-            residuals = rearrange(
-                residuals, "b ... s d -> (b s) d ...", s=self.num_streams
-            )
+            residuals = rearrange(residuals, "b ... s d -> (b s) d ...", s=self.num_streams)
         else:
-            residuals = rearrange(
-                residuals, "b ... s d -> (b s) ... d", s=self.num_streams
-            )
+            residuals = rearrange(residuals, "b ... s d -> (b s) ... d", s=self.num_streams)
 
         return residuals
 
@@ -650,13 +627,9 @@ class AttentionPoolReduceStream(Module):
 
     def forward(self, residuals):
         if self.channel_first:
-            residuals = rearrange(
-                residuals, "(b s) d ... -> b ... s d", s=self.num_streams
-            )
+            residuals = rearrange(residuals, "(b s) d ... -> b ... s d", s=self.num_streams)
         else:
-            residuals = rearrange(
-                residuals, "(b s) ... d -> b ... s d", s=self.num_streams
-            )
+            residuals = rearrange(residuals, "(b s) ... d -> b ... s d", s=self.num_streams)
 
         attn_logits = self.to_attn_logits(residuals)
         attn = attn_logits.softmax(dim=-2)
