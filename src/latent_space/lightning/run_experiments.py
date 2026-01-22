@@ -48,7 +48,7 @@ def archive_experiment_state(output_dir: Path) -> None:
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
         )
 
-    git_commit = get_git_commit()
+    git_commit = get_git_commit(LIGHTNING_SRC_DIR)
     (output_dir / GIT_COMMIT_FILENAME).write_text(f"{git_commit}\n", encoding="utf-8")
 
 
