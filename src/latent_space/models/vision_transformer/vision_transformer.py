@@ -13,7 +13,7 @@ import torch
 import torch.nn.init
 from torch import Tensor, nn
 
-from latent_space.utils.hyper_connections_mhc import (
+from latent_space.models.mHC_util.hyper_connections_mhc import (
     HyperConnections,
     get_init_and_expand_reduce_stream_functions,
 )

@@ -19,3 +19,4 @@ numba>=0.57
 llvmlite>=0.40
 lightning
 rich
+tensorboard
