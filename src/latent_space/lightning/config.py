@@ -3,6 +3,24 @@ from typing import Literal
 
 
 @dataclass
+class ExperimentConfig:
+    experiment_name: str = ""
+
+    output_dir: str = "./experiments"
+    seed: int = 42  # -1 to disable
+    run_mhc_variant: bool = False
+    debug_mode: bool = True
+
+    # Visualization parameters
+    save_embeddings: bool = True
+    umap_n_neighbors: list[int] = field(default_factory=lambda: [5, 15, 50])
+    umap_min_dist: float = 0.1
+
+    # Runtime fields
+    is_mhc: bool = False
+
+
+@dataclass
 class DataConfig:
     use_cifar100: bool = True
     batch_size: int = 256
@@ -42,20 +60,6 @@ class TrainingConfig:
     decay_type: str = "1-sqrt"
     start_cooldown_immediately: bool = False
     auto_trigger_cooldown: bool = False
-
-
-@dataclass
-class ExperimentConfig:
-    seed: int = 42
-    debug_mode: bool = True
-    checkpoint_dir: str = "./temp/checkpoints"
-    output_dir: str = "./temp"
-    run_mhc_variant:bool = False
-
-    # Visualization parameters
-    save_embeddings: bool = True
-    umap_n_neighbors: list[int] = field(default_factory=lambda: [5, 15, 50])
-    umap_min_dist: float = 0.1
 
 
 @dataclass

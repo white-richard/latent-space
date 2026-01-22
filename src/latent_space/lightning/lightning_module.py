@@ -2,7 +2,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
-from latent_space.utils.vision_transformer.vision_transformer import vit_tiny
+from latent_space.models.vision_transformer.vision_transformer import vit_tiny
 
 from .config import Config
 
@@ -107,7 +107,7 @@ class VisionTransformerModule(pl.LightningModule):
             raise NotImplementedError("Cosine scheduler not implemented")
 
         elif self.config.training.scheduler_name == "warmup_hold_decay":
-            from latent_space.warm_hold_decay_scheduler import WHDScheduler
+            from latent_space.schedulers.warm_hold_decay_scheduler import WHDScheduler
 
             scheduler = WHDScheduler(
                 optimizer,

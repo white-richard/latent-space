@@ -39,7 +39,7 @@ def create_callbacks(config: ExperimentConfig):
 
     # Model checkpoint callback
     checkpoint_callback = ModelCheckpoint(
-        dirpath=config.checkpoint_dir,
+        dirpath=config.output_dir / "checkpoints",
         filename="{epoch}-{val/acc:.4f}",
         monitor="val/acc",
         mode="max",
@@ -99,8 +99,10 @@ def generate_visualizations(
 
 def train(config: Config):
     """Main training function."""
+
     # Set random seeds
-    set_all_seeds(config.experiment.seed)
+    if config.experiment.seed != -1:
+        set_all_seeds(config.experiment.seed)
 
     # Initialize data module
     datamodule = CIFARDataModule(config.data)
@@ -110,14 +112,10 @@ def train(config: Config):
     # Initialize model
     module = VisionTransformerModule(config=config)
 
-    # Create logger
-    cifar_name = "cifar100" if config.data.use_cifar100 else "cifar10"
-    using_mhc = "_mhc" if config.experiment.run_mhc_variant else ""
-    logger_name = f"{cifar_name}_{config.model.model_name}{using_mhc}"
     logger = TensorBoardLogger(
         save_dir=config.experiment.output_dir,
-        name=logger_name,
-        version=config.model.model_name,
+        name=config.experiment.experiment_name,
+        version=None,
     )
 
     # Create callbacks
@@ -152,57 +150,3 @@ def train(config: Config):
 
     print("\nTraining complete!")
     return module, datamodule, trainer
-
-
-def main():
-    """Main entry point with example configuration."""
-    config = Config()
-
-    # Override config from command line args if needed
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Train Vision Transformer on CIFAR10")
-    parser.add_argument("--model-name", type=str, choices=["vit_tiny", "vit_tiny_mhc"])
-    parser.add_argument("--batch-size", type=int)
-    parser.add_argument("--epochs", type=int)
-    parser.add_argument("--lr", type=float)
-    parser.add_argument("--weight-decay", type=float)
-    parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--no-embeddings", action="store_true")
-
-    args = parser.parse_args()
-
-    # Override config with CLI args if provided
-    if args.model_name:
-        config.model.model_name = args.model_name
-    if args.batch_size:
-        config.data.batch_size = args.batch_size
-    if args.epochs:
-        config.training.epochs = args.epochs
-    if args.lr:
-        config.training.lr = args.lr
-    if args.weight_decay:
-        config.training.weight_decay = args.weight_decay
-    if args.debug:
-        config.experiment.debug_mode = True
-    if args.no_embeddings:
-        config.experiment.save_embeddings = False
-
-    # Print configuration
-    print("=" * 80)
-    print("Training Configuration:")
-    print("=" * 80)
-    print(f"Model: {config.model.model_name}")
-    print(f"Batch size: {config.data.batch_size}")
-    print(f"Epochs: {config.training.epochs}")
-    print(f"Learning rate: {config.training.lr}")
-    print(f"Weight decay: {config.training.weight_decay}")
-    print(f"Debug mode: {config.experiment.debug_mode}")
-    print("=" * 80)
-
-    # Run training
-    train(config)
-
-
-if __name__ == "__main__":
-    main()
