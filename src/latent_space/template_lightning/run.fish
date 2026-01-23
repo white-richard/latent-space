@@ -1,5 +1,4 @@
 #!/usr/bin/env fish
-# run.fish (repo root)
 
 set -l repo_root (pwd)
 set -l venv_python "$repo_root/.venv/bin/python"

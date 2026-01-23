@@ -88,7 +88,9 @@ def create_experiment_dir(
 
 def experiment_baseline():
     """Baseline configuration"""
-    use_cifar100 = False
+    use_cifar100 = (
+        False  # This is hacky and should be replaced with a better system for choosing datasets
+    )
     experiment_name = experiment_baseline.__name__.removeprefix("experiment_")
     dataset_name = "cifar100" if use_cifar100 else "cifar10"
     experiment_name = experiment_name + f"_{dataset_name}"
@@ -137,6 +139,10 @@ def experiment_baseline():
 def experiment_ensemble_seeds(
     base_config: Config, num_seeds: int = 5, seed_generator_seed: int | None = None
 ):
+    raise NotImplementedError(
+        "Ensemble seed experiment is not yet ready for use."
+        "The results need to be averaged for each metric across the seeds and this isn't done yet."
+    )
     results = []
     rng = np.random.default_rng(seed_generator_seed)
     seeds = rng.integers(low=1, high=10000, size=num_seeds)
@@ -168,6 +174,11 @@ EXPERIMENTS = {
 # TODO: generalize this to other variants
 def expand_w_mhc(config: Config) -> list[Config]:
     """Return configs including optional mhc variant based on ExperimentConfig."""
+    raise NotImplementedError(
+        "This is a function I made so that I could compare a model with another variant of itself (mhc)."
+        "This function is useful but written for mHC."
+        "It needs to be generalized for comparing other models at some point"
+    )
     configs: list[Config] = [copy.deepcopy(config)]
 
     if config.experiment.run_mhc_variant:
