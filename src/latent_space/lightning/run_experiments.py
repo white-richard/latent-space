@@ -10,6 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
+from latent_space.utils.markdown_results import MarkdownTableLogger, config_to_row, merge_row
+
 from .config import Config, DataConfig, ExperimentConfig, ModelConfig, TrainingConfig
 from .train import train
 from .utils import get_git_commit
@@ -66,7 +68,6 @@ def create_experiment_dir(
         ./experiments/experiment_name_001/2026-01-21_14-32-10
     """
     base_dir.mkdir(parents=True, exist_ok=True)
-
     pattern = re.compile(rf"{re.escape(experiment_name)}_(\d+)$")
     existing_indices = []
 
@@ -123,13 +124,22 @@ def experiment_baseline():
     )
     with_mhc = base_config.experiment.run_mhc_variant
 
+
     print("\nRunning Baseline Experimentwith MHC" if with_mhc else "")
     # return train(config)
     results = []
     for config in expand_w_mhc(base_config):
         prepare_experiment_artifacts(config)
+        logger = MarkdownTableLogger(Path(config.experiment.output_dir) / "results.md")
         print(f"\nRunning Baseline Experiment ({config.model.model_name})")
-        results.append(train(config))
+        result = train(config)
+        results.append(result)
+
+        # For markdown logging
+        row = merge_row(
+            {"metrics": result} if not isinstance(result, dict) else result,  # adapt
+        )
+        logger.append(row)
 
     return results
 
@@ -178,6 +188,7 @@ def expand_w_mhc(config: Config) -> list[Config]:
 
         mhc.experiment.output_dir = mhc.experiment.output_dir / "mhc"
         mhc.experiment.is_mhc = True
+        mhc.experiment.experiment_name = f"{mhc.experiment.experiment_name}_mhc"
         configs.append(mhc)
 
     return configs
@@ -234,7 +245,7 @@ def main():
                 results[name] = result
                 print(f"\n{name} completed successfully")
             except Exception as e:
-                print(f"\n❌ {name} failed with error: {e}")
+                print(f"\n {name} failed with error: {e}")
                 results[name] = None
 
         # Print summary
@@ -242,7 +253,7 @@ def main():
         print("Experiment Summary".center(80))
         print("=" * 80)
         for name, result in results.items():
-            status = "Success" if result is not None else "❌ Failed"
+            status = "Success" if result is not None else "Failed"
             print(f"{name:30} {status}")
         print("=" * 80)
 
