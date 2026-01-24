@@ -1,8 +1,10 @@
-# Expeirment Notes (example)
+# Expeirment Notes
 
-## Experiemnt name:
+# --- Experiment Path ---
 
-Baseline training using a higher learning rate of 0.01
+[Experiemnt path](./)
+
+## Experiemnt summary
 
 ## Hypothesis:
 
@@ -26,9 +28,9 @@ The higher learning rate positively impacted the training speed and final accura
 
 - Test learning rates of 0.02 and 0.05
 
-# -------
+# ----------------
 
-This is an example of how I document experiements. I make a new notes.md files for each ./experiment/experiment_name/datetime/
+This is an example of how I document experiements. I prepend this for each experiment I run to notes.md in ./
 I very much try to keep doing notes as minimal and quick as possible so I actually do them
 But keeping notes is very important so that I can look back later and see what I have been doing
 The experiements also saves copies of all of the code; this is useful with a file diff tool so I can see line by line what has changed over time
