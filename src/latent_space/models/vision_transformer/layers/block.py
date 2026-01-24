@@ -17,10 +17,39 @@ torch._dynamo.config.automatic_dynamic_shapes = False
 torch._dynamo.config.accumulated_cache_size_limit = 1024
 
 
+# ---- mHC ----
+class AttnBranch(nn.Module):
+    def __init__(self, norm, attn, ls):
+        super().__init__()
+        self.norm = norm
+        self.attn = attn
+        self.ls = ls
+
+    def forward(self, x, rope=None):
+        assert rope is not None, "Rope must be provided to AttnBranch"
+        print("delete delete delete assert")
+        return self.ls(self.attn(self.norm(x), rope=rope))
+
+
+class MlpBranch(nn.Module):
+    def __init__(self, norm, mlp, ls):
+        super().__init__()
+        self.norm = norm
+        self.mlp = mlp
+        self.ls = ls
+
+    def forward(self, x):
+        return self.ls(self.mlp(self.norm(x)))
+
+
+# -------------
+
+
 class SelfAttentionBlock(nn.Module):
     def __init__(
         self,
         dim: int,
+        layer_idx: int,  # mHC
         num_heads: int,
         ffn_ratio: float = 4.0,
         qkv_bias: bool = False,
@@ -36,11 +65,18 @@ class SelfAttentionBlock(nn.Module):
         ffn_layer: Callable[..., nn.Module] = Mlp,
         mask_k_bias: bool = False,
         device=None,
-        use_skip: bool = True,
+        # --- mHC ---
+        use_mhc: bool = False,
+        init_mhc=None,
     ) -> None:
         super().__init__()
         # print(f"biases: qkv: {qkv_bias}, proj: {proj_bias}, ffn: {ffn_bias}")
-        self.use_skip = use_skip
+
+        # --- mHC ---
+        self.use_mhc = use_mhc
+        self.use_skip = not self.use_mhc
+        # -----------
+
         self.norm1 = norm_layer(dim)
         self.attn = attn_class(
             dim,
@@ -76,6 +112,33 @@ class SelfAttentionBlock(nn.Module):
 
         self.sample_drop_ratio = drop_path
 
+        if self.use_mhc:
+            assert init_mhc is not None, "use_mhc=True but init_mhc was not passed"
+
+            mhc_kwargs = dict(
+                mhc=True,
+                sinkhorn_iters=10,
+                sinkhorn_tau=0.05,
+                mhc_h_res_proj="sinkhorn",
+                ns_steps=5,
+                ns_eps=1e-7,
+                ns_coeffs=(3.0, -3.2, 1.2),
+            )
+
+            self.hc_attn = init_mhc(
+                dim=dim,
+                branch=AttnBranch(self.norm1, self.attn, self.ls1),
+                layer_index=layer_idx * 2,
+                **mhc_kwargs,
+            )
+            self.hc_mlp = init_mhc(
+                dim=dim,
+                branch=MlpBranch(self.norm2, self.mlp, self.ls2),
+                layer_index=layer_idx * 2 + 1,
+                **mhc_kwargs,
+            )
+        # -----------
+
     @staticmethod
     def _maybe_index_rope(
         rope: tuple[Tensor, Tensor] | None, indices: Tensor
@@ -91,6 +154,13 @@ class SelfAttentionBlock(nn.Module):
         else:
             # No batch dimension, do not index
             return sin, cos  # [heads, patches, embed_dim] or [patches, embed_dim]
+
+    # --- mHC ---
+    def _forward_mhc(self, x: Tensor, rope=None) -> Tensor:
+        x = self.hc_attn(x, rope=rope)
+        x = self.hc_mlp(x)
+        return x
+    # -----------
 
     def _forward(self, x: Tensor, rope=None) -> Tensor:
         """
@@ -167,20 +237,25 @@ class SelfAttentionBlock(nn.Module):
         b_list = [x.shape[0] for x in x_list]
         sample_subset_sizes = [max(int(b * (1 - self.sample_drop_ratio)), 1) for b in b_list]
         residual_scale_factors = [
-            b / sample_subset_size for b, sample_subset_size in zip(b_list, sample_subset_sizes)
+            b / sample_subset_size
+            for b, sample_subset_size in zip(b_list, sample_subset_sizes, strict=False)
         ]
 
         if self.training and self.sample_drop_ratio > 0.0:
             indices_1_list = [
                 (torch.randperm(b, device=x.device))[:sample_subset_size]
-                for x, b, sample_subset_size in zip(x_list, b_list, sample_subset_sizes)
+                for x, b, sample_subset_size in zip(
+                    x_list, b_list, sample_subset_sizes, strict=False
+                )
             ]
-            x_subset_1_list = [x[indices_1] for x, indices_1 in zip(x_list, indices_1_list)]
+            x_subset_1_list = [
+                x[indices_1] for x, indices_1 in zip(x_list, indices_1_list, strict=False)
+            ]
 
             if rope_list is not None:
                 rope_subset_list = [
                     self._maybe_index_rope(rope, indices_1)
-                    for rope, indices_1 in zip(rope_list, indices_1_list)
+                    for rope, indices_1 in zip(rope_list, indices_1_list, strict=False)
                 ]
             else:
                 rope_subset_list = rope_list
@@ -200,15 +275,19 @@ class SelfAttentionBlock(nn.Module):
                     alpha=residual_scale_factor,
                 )
                 for x, residual_1, indices_1, residual_scale_factor in zip(
-                    x_list, residual_1_list, indices_1_list, residual_scale_factors
+                    x_list, residual_1_list, indices_1_list, residual_scale_factors, strict=False
                 )
             ]
 
             indices_2_list = [
                 (torch.randperm(b, device=x.device))[:sample_subset_size]
-                for x, b, sample_subset_size in zip(x_list, b_list, sample_subset_sizes)
+                for x, b, sample_subset_size in zip(
+                    x_list, b_list, sample_subset_sizes, strict=False
+                )
             ]
-            x_subset_2_list = [x[indices_2] for x, indices_2 in zip(x_attn_list, indices_2_list)]
+            x_subset_2_list = [
+                x[indices_2] for x, indices_2 in zip(x_attn_list, indices_2_list, strict=False)
+            ]
             flattened, shapes, num_tokens = cat_keep_shapes(x_subset_2_list)
             norm2_flat = self.norm2(flattened)
             norm2_list = uncat_with_shapes(norm2_flat, shapes, num_tokens)
@@ -226,7 +305,11 @@ class SelfAttentionBlock(nn.Module):
                     alpha=residual_scale_factor,
                 )
                 for x_attn, residual_2, indices_2, residual_scale_factor in zip(
-                    x_attn_list, residual_2_list, indices_2_list, residual_scale_factors
+                    x_attn_list,
+                    residual_2_list,
+                    indices_2_list,
+                    residual_scale_factors,
+                    strict=False,
                 )
             ]
         # else:
@@ -239,7 +322,7 @@ class SelfAttentionBlock(nn.Module):
         # Added flag to disable residual connection
         else:
             x_out = []
-            for x, rope in zip(x_list, rope_list):
+            for x, rope in zip(x_list, rope_list, strict=False):
                 attn_out = self.ls1(self.attn(self.norm1(x), rope=rope))
                 x_attn = (x + attn_out) if self.use_skip else attn_out
 
@@ -252,6 +335,20 @@ class SelfAttentionBlock(nn.Module):
         return x_ffn
 
     def forward(self, x_or_x_list, rope_or_rope_list=None) -> list[Tensor]:
+        # --- mHC ---
+        if self.use_mhc:
+            if isinstance(x_or_x_list, Tensor):
+                return self._forward_mhc(x_or_x_list, rope=rope_or_rope_list)
+            else:
+                raise NotImplementedError("mHC forward only implemented for single Tensor input")
+                if rope_or_rope_list is None:
+                    rope_or_rope_list = [None for _ in x_or_x_list]
+                return [
+                    self._forward_mhc(x, rope=rope)
+                    for x, rope in zip(x_or_x_list, rope_or_rope_list, strict=False)
+                ]
+        # -----------
+
         if isinstance(x_or_x_list, Tensor):
             # for reference:
             # return self._forward(x_or_x_list, rope=rope_or_rope_list)

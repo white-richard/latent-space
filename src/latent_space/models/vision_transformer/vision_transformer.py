@@ -13,10 +13,7 @@ import torch
 import torch.nn.init
 from torch import Tensor, nn
 
-from latent_space.models.mHC_util.hyper_connections_mhc import (
-    HyperConnections,
-    get_init_and_expand_reduce_stream_functions,
-)
+from latent_space.models.mHC_util.hyper_connections_mhc import get_init_and_expand_reduce_stream_functions
 
 from .layers import (
     LayerScale,
@@ -93,24 +90,6 @@ def init_weights_vit(module: nn.Module, name: str = ""):
         module.reset_parameters()
 
 
-class MHCBlockWrapper(nn.Module):
-    def __init__(self, block: nn.Module, hc: HyperConnections):
-        super().__init__()
-        self.block = block
-        self.hc = hc
-
-    def _forward_one(self, x, rope_sincos):
-        # HyperConnections will call branch(block) internally
-        return self.hc(x, rope_sincos)
-
-    def forward(self, x, rope_sincos):
-        # match SelfAttentionBlock behavior: supports either Tensor or list[Tensor]
-        if isinstance(x, list):
-            assert isinstance(rope_sincos, list)
-            return [self._forward_one(t, r) for t, r in zip(x, rope_sincos, strict=False)]
-        return self._forward_one(x, rope_sincos)
-
-
 class DinoVisionTransformer(nn.Module):
     def __init__(
         self,
@@ -145,12 +124,8 @@ class DinoVisionTransformer(nn.Module):
         device: Any | None = None,
         # ---- mHC ----
         use_mhc: bool = False,
-        mhc_num_streams: int = 2,
-        mhc_tau: float = 0.1,
-        mhc_num_iters: int = 5,
-        mhc_reduce: Literal["sum", "mean"] = "mean",
-        mhc_dropout: float = 0.0,
-        mhc_add_stream_embed: bool = False,
+        mhc_num_fracs: int = 1,
+        mhc_num_streams: int = 1, # 1 | 4 I saw in the mHC example repo
         # -------------
         **ignored_kwargs,
     ):
@@ -158,6 +133,18 @@ class DinoVisionTransformer(nn.Module):
         if len(ignored_kwargs) > 0:
             logger.warning(f"Ignored kwargs: {ignored_kwargs}")
         del ignored_kwargs
+        
+        # ---- mHC ----
+        init_hc, expand_stream, reduce_stream = (
+            get_init_and_expand_reduce_stream_functions(
+                mhc_num_streams,
+                num_fracs=mhc_num_fracs,
+                disable=not use_mhc,
+            )
+        )
+        self.expand_stream = expand_stream
+        self.reduce_stream = reduce_stream
+        # -------------
 
         norm_layer_cls = norm_layer_dict[norm_layer]
 
@@ -209,6 +196,7 @@ class DinoVisionTransformer(nn.Module):
         blocks_list = [
             SelfAttentionBlock(
                 dim=embed_dim,
+                layer_idx=i,
                 num_heads=num_heads,
                 ffn_ratio=ffn_ratio_sequence[i],
                 qkv_bias=qkv_bias,
@@ -221,49 +209,15 @@ class DinoVisionTransformer(nn.Module):
                 init_values=layerscale_init,
                 mask_k_bias=mask_k_bias,
                 device=device,
-                use_skip=not use_mhc,
+                use_mhc=use_mhc,
+                init_mhc=init_hc,
             )
             for i in range(depth)
         ]
 
-        # ---- mHC -----
-        self.use_mhc = use_mhc
-        if self.use_mhc:
-            self.mhc_num_streams = mhc_num_streams
-            self.mhc_reduce_mode = mhc_reduce
-
-            (init_hc_fn, mhc_expand, mhc_reduce) = get_init_and_expand_reduce_stream_functions(
-                num_streams=mhc_num_streams,
-                num_fracs=1,
-                dim=embed_dim,
-                add_stream_embed=mhc_add_stream_embed,
-                disable=(mhc_num_streams == 1),
-            )
-
-            self.mhc_expand = mhc_expand
-            self.mhc_reduce = mhc_reduce
-
-            if mhc_num_streams > 1:
-                wrapped = []
-                for i, blk in enumerate(blocks_list):
-                    hc = init_hc_fn(
-                        dim=embed_dim,
-                        branch=blk,
-                        layer_index=i,
-                        dropout=mhc_dropout,
-                        mhc_num_iters=mhc_num_iters,
-                        mhc_tau=mhc_tau,
-                        # channel_first=False is correct for (B, N, D)
-                    )
-                    wrapped.append(MHCBlockWrapper(blk, hc))
-                self.blocks = nn.ModuleList(wrapped)
-            else:
-                self.blocks = nn.ModuleList(blocks_list)
-        # --------------
 
         self.chunked_blocks = False
-        if not self.use_mhc:
-            self.blocks = nn.ModuleList(blocks_list)
+        self.blocks = nn.ModuleList(blocks_list)
 
         # This norm is applied to everything, or when untying, to patch and mask tokens.
         self.norm = norm_layer_cls(embed_dim)
@@ -335,11 +289,6 @@ class DinoVisionTransformer(nn.Module):
         rope = []
         for t_x, t_masks in zip(x_list, masks_list, strict=False):
             t2_x, hw_tuple = self.prepare_tokens_with_masks(t_x, t_masks)
-            # ---- mHC -------
-            if self.use_mhc:
-                t2_x = self.mhc_expand(t2_x)  # (B, N, D) -> (B*S, N, D) if enabled
-                x.append(t2_x)
-            # ----------------
             x.append(t2_x)
             rope.append(hw_tuple)
         for _, blk in enumerate(self.blocks):
@@ -349,17 +298,6 @@ class DinoVisionTransformer(nn.Module):
                 rope_sincos = [None for r in rope]
             x = blk(x, rope_sincos)
         all_x = x
-        # ---- mHC ----
-        if self.use_mhc and self.mhc_num_streams > 1:
-
-            def _reduce_one(t):
-                t = self.mhc_reduce(t)  # (B*S, N, D) -> (B, N, D), currently SUM
-                if self.mhc_reduce_mode == "mean":
-                    t = t / self.mhc_num_streams
-                return t
-
-            all_x = [_reduce_one(t) for t in all_x]
-        # -------------
         output = []
         for idx, (x, masks) in enumerate(zip(all_x, masks_list, strict=False)):
             if self.untie_cls_and_patch_norms or self.untie_global_and_local_cls_norm:
