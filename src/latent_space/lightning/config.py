@@ -34,6 +34,7 @@ class DataConfig:
     jitter: float = 0.1
 
 
+
 @dataclass
 class ModelConfig:
     model_name: Literal["vit_tiny", "vit_tiny_mhc"] = "vit_tiny"
@@ -52,11 +53,10 @@ class TrainingConfig:
 
     # Scheduler parameters
     scheduler_name: Literal["cosine", "warmup_hold_decay"] = "warmup_hold_decay"
-    # Cosine
-    cosine_eta_min_factor: float = 0.01  # lr * this factor = min lr
+    
+    lr_min_factor: float = 0.1 # TODO abalate? # lr * this factor = min lr
     # Warmup Hold Decay
     frac_warmup: float = 0.1
-    final_lr_factor: float = 0.1
     decay_type: str = "1-sqrt"
     start_cooldown_immediately: bool = False
     auto_trigger_cooldown: bool = False

@@ -191,7 +191,8 @@ if __name__ == "__main__":
             final_lr_factor=final_lr_factor,
             decay_type=decay_type,
             init_div_factor=100.0,
-            start_cooldown_immediately=start_cooldown_immediately,
+            auto_trigger_cooldown=False
+            # start_cooldown_immediately=start_cooldown_immediately,
         )
 
     def simulate_lrs(decay_type: str, trigger_at: int | None):

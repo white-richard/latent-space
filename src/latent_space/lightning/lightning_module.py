@@ -113,7 +113,7 @@ class VisionTransformerModule(pl.LightningModule):
                 optimizer,
                 n_iterations=n_iters,
                 frac_warmup=self.config.training.frac_warmup,
-                final_lr_factor=self.config.training.final_lr_factor,
+                final_lr_factor=self.config.training.lr_min_factor,
                 decay_type=self.config.training.decay_type,
                 start_cooldown_immediately=self.config.training.start_cooldown_immediately,
                 auto_trigger_cooldown=self.config.training.auto_trigger_cooldown
