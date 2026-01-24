@@ -20,3 +20,5 @@ llvmlite>=0.40
 lightning
 rich
 tensorboard
+# For DINOv3
+-r repos/dinov3/requirements.txt

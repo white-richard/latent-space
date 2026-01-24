@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from latent_space.warm_hold_decay_scheduler import WHDScheduler
+from latent_space.schedulers.warm_hold_decay_scheduler import WHDScheduler
 
 
 def make_optimizer(lr=1e-3):
