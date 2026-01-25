@@ -1,6 +1,9 @@
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_score
+from sklearn.neighbors import NearestNeighbors
 
 from latent_space.models.vision_transformer.vision_transformer import vit_tiny
 
@@ -38,6 +41,18 @@ class VisionTransformerModule(pl.LightningModule):
         # Metrics tracking
         self.train_acc = []
         self.val_acc = []
+
+    def forward_head(self, x):
+        """
+        Forward pass through only the head of the model.
+        """
+        return self.model.head(x)
+
+    def forward_cls(self, x):
+        """
+        Forward pass through the model up to the feature extraction.
+        """
+        return self.model.forward_cls(x)
 
     def forward(self, x):
         """Forward pass through the model."""
@@ -79,11 +94,14 @@ class VisionTransformerModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         """Test step."""
         X, y = batch
-        output = self(X)
-        loss = self.criterion(output, y)
+        embeddings = self.forward_cls(X)
+        print(f"Embeddings shape: {embeddings.shape}")
+        raise ValueError("Debug stop, make sure it is a vector output")
+        logits = self.forward_head(embeddings)
+        loss = self.criterion(logits, y)
 
         # Calculate accuracy
-        pred = output.argmax(dim=1)
+        pred = logits.argmax(dim=1)
         acc = (pred == y).float().mean()
 
         # Log metrics
@@ -91,6 +109,18 @@ class VisionTransformerModule(pl.LightningModule):
         self.log("test/acc", acc, on_step=False, on_epoch=True)
 
         return {"test_loss": loss, "test_acc": acc}
+
+    def on_test_end(self):
+        embeddings, labels = self.get_embeddings(self.trainer.datamodule.test_dataloader())
+
+        knn_acc, y_knn = self.knn_accuracy_in_embedding_space(embeddings, labels, k=1)
+        # cm, label_list, per_class = self.per_class_confusion_matrix(labels, y_knn, normalize=None)
+        overall_sil, sil_by_class, sil_per_sample = self.silhouette_score_by_class(
+            embeddings, labels
+        )
+        self.log("test/knn_acc", knn_acc, prog_bar=False)
+        self.log("test/silhouette", overall_sil, prog_bar=False)
+
 
     def configure_optimizers(self):
         """Configure optimizer and learning rate scheduler."""
@@ -101,6 +131,10 @@ class VisionTransformerModule(pl.LightningModule):
         )
 
         num_batches = self.config.model.num_batches
+        if num_batches is None:
+            raise ValueError(
+                "TrainingConfig.num_batches must be set before training."
+            )
         n_iters = num_batches * self.config.training.epochs
 
         if self.config.training.scheduler_name == "cosine":
@@ -116,7 +150,7 @@ class VisionTransformerModule(pl.LightningModule):
                 final_lr_factor=self.config.training.lr_min_factor,
                 decay_type=self.config.training.decay_type,
                 start_cooldown_immediately=self.config.training.start_cooldown_immediately,
-                auto_trigger_cooldown=self.config.training.auto_trigger_cooldown
+                auto_trigger_cooldown=self.config.training.auto_trigger_cooldown,
             )
             return {
                 "optimizer": optimizer,
@@ -150,24 +184,116 @@ class VisionTransformerModule(pl.LightningModule):
         """Extract embeddings from the model (without classification head)."""
         self.eval()
 
-        # Temporarily replace head with identity
-        original_head = self.model.head
-        self.model.head = nn.Identity()
-
         embeddings = []
         labels = []
 
         with torch.no_grad():
             for X, y in dataloader:
                 X = X.to(self.device)
-                emb = self(X)
+                emb = self.forward_cls(X)
                 embeddings.append(emb.cpu())
                 labels.append(y)
-
-        # Restore original head
-        self.model.head = original_head
 
         embeddings = torch.cat(embeddings, dim=0)
         labels = torch.cat(labels, dim=0)
 
         return embeddings.numpy(), labels.numpy()
+
+    def knn_accuracy_in_embedding_space(self, embeddings, y_true, k=1, metric="euclidean"):
+        X = np.asarray(embeddings)
+        y = np.asarray(y_true)
+
+        if X.ndim != 2:
+            raise ValueError("embeddings must be a 2D array (n_samples, n_dims).")
+        if len(y) != X.shape[0]:
+            raise ValueError("y_true length must match number of rows in embeddings.")
+        if k < 1:
+            raise ValueError("k must be >= 1.")
+
+        # +1 because the nearest neighbor of a point is itself (distance 0)
+        nn = NearestNeighbors(n_neighbors=min(k + 1, X.shape[0]), metric=metric)
+        nn.fit(X)
+        neigh_idx = nn.kneighbors(X, return_distance=False)
+
+        # drop self-neighbor (first column)
+        neigh_idx = neigh_idx[:, 1:]
+        if neigh_idx.shape[1] < k:
+            # small dataset edge case: reduce k
+            k_eff = neigh_idx.shape[1]
+            if k_eff == 0:
+                raise ValueError("Not enough samples to compute neighbors (need at least 2).")
+        else:
+            k_eff = k
+
+        # majority vote
+        y_pred = np.empty_like(y, dtype=object if y.dtype.kind in {"U", "S", "O"} else y.dtype)
+        for i in range(X.shape[0]):
+            neighbor_labels = y[neigh_idx[i, :k_eff]]
+            # Count occurrences
+            vals, counts = np.unique(neighbor_labels, return_counts=True)
+            # Tie-break: pick the first max (deterministic by np.unique sort)
+            y_pred[i] = vals[np.argmax(counts)]
+
+        acc = float(np.mean(y_pred == y))
+        return acc, y_pred
+
+    def per_class_confusion_matrix(self, y_true, y_pred, labels=None, normalize=None):
+        y_t = np.asarray(y_true)
+        y_p = np.asarray(y_pred)
+
+        if labels is None:
+            label_list = np.unique(np.concatenate([y_t, y_p]))
+        else:
+            label_list = np.asarray(labels)
+
+        cm = confusion_matrix(y_t, y_p, labels=label_list, normalize=normalize)
+
+        # For per-class metrics, use the *unnormalized* confusion matrix
+        cm_raw = confusion_matrix(y_t, y_p, labels=label_list, normalize=None)
+        per_class = {}
+
+        for i, lab in enumerate(label_list):
+            tp = cm_raw[i, i]
+            fn = cm_raw[i, :].sum() - tp
+            fp = cm_raw[:, i].sum() - tp
+            tn = cm_raw.sum() - (tp + fn + fp)
+
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+
+            per_class[lab] = {
+                "TP": int(tp),
+                "FP": int(fp),
+                "FN": int(fn),
+                "TN": int(tn),
+                "precision": float(precision),
+                "recall": float(recall),
+                "support": int(cm_raw[i, :].sum()),
+            }
+
+        return cm, label_list, per_class
+
+    def silhouette_score_by_class(self, embeddings, y_true, metric="euclidean"):
+        """
+        Silhouette analysis using class labels as cluster IDs.
+        """
+        X = np.asarray(embeddings)
+        y = np.asarray(y_true)
+
+        unique, counts = np.unique(y, return_counts=True)
+        if unique.shape[0] < 2:
+            raise ValueError("Silhouette requires at least 2 distinct classes.")
+        if np.any(counts < 2):
+            bad = unique[counts < 2]
+            raise ValueError(
+                f"Silhouette requires at least 2 samples per class. Classes with <2 samples: {bad}"
+            )
+
+        per_sample = silhouette_samples(X, y, metric=metric)
+        overall = float(silhouette_score(X, y, metric=metric))
+
+        by_class = {}
+        for lab in unique:
+            by_class[lab] = float(np.mean(per_sample[y == lab]))
+
+        return overall, by_class, per_sample

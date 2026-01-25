@@ -9,7 +9,7 @@ class ExperimentConfig:
     output_dir: str = "./experiments"
     seed: int = 42  # -1 to disable
     run_mhc_variant: bool = False
-    debug_mode: bool = True
+    debug_mode: bool = False
 
     # Visualization parameters
     save_embeddings: bool = True
