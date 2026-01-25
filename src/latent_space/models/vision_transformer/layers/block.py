@@ -26,8 +26,6 @@ class AttnBranch(nn.Module):
         self.ls = ls
 
     def forward(self, x, rope=None):
-        assert rope is not None, "Rope must be provided to AttnBranch"
-        print("delete delete delete assert")
         return self.ls(self.attn(self.norm(x), rope=rope))
 
 
@@ -340,7 +338,6 @@ class SelfAttentionBlock(nn.Module):
             if isinstance(x_or_x_list, Tensor):
                 return self._forward_mhc(x_or_x_list, rope=rope_or_rope_list)
             else:
-                raise NotImplementedError("mHC forward only implemented for single Tensor input")
                 if rope_or_rope_list is None:
                     rope_or_rope_list = [None for _ in x_or_x_list]
                 return [

@@ -107,7 +107,7 @@ def train(config: Config):
     # Initialize data module
     datamodule = CIFARDataModule(config.data)
     datamodule.setup()
-    config.model.num_batches = len(datamodule.train_dataset)
+    config.model.num_batches = len(datamodule.train_dataloader())
 
     # Initialize model
     module = VisionTransformerModule(config=config)

@@ -113,7 +113,6 @@ def get_init_and_expand_reduce_stream_functions(
 
 # main classes
 
-
 class HyperConnections(Module):
     def __init__(
         self,
@@ -132,11 +131,14 @@ class HyperConnections(Module):
         num_fracs=1,  # https://arxiv.org/abs/2503.14125
         mhc_num_iters=10,
         mhc_tau=0.05,
+        **kwargs,
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
         """
         super().__init__()
+        
+        print(f"Skipping these {kwargs} kwargs in HyperConnections init")
 
         self.branch = branch
         self.mhc_num_iters = mhc_num_iters
