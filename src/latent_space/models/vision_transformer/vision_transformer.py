@@ -13,7 +13,9 @@ import torch
 import torch.nn.init
 from torch import Tensor, nn
 
-from latent_space.models.mHC_util.hyper_connections_mhc import get_init_and_expand_reduce_stream_functions
+from latent_space.models.mHC_util.hyper_connections_mhc import (
+    get_init_and_expand_reduce_stream_functions,
+)
 
 from .layers import (
     LayerScale,
@@ -125,7 +127,7 @@ class DinoVisionTransformer(nn.Module):
         # ---- mHC ----
         use_mhc: bool = False,
         mhc_num_fracs: int = 1,
-        mhc_num_streams: int = 1, # 1 | 4 I saw in the mHC example repo
+        mhc_num_streams: int = 1,  # 1 | 4 I saw in the mHC example repo
         # -------------
         **ignored_kwargs,
     ):
@@ -133,17 +135,17 @@ class DinoVisionTransformer(nn.Module):
         if len(ignored_kwargs) > 0:
             logger.warning(f"Ignored kwargs: {ignored_kwargs}")
         del ignored_kwargs
-        
+
         # ---- mHC ----
-        init_hc, expand_stream, reduce_stream = (
-            get_init_and_expand_reduce_stream_functions(
+        init_hc, expand_stream, reduce_stream = None, None, None
+        if use_mhc:
+            init_hc, expand_stream, reduce_stream = get_init_and_expand_reduce_stream_functions(
                 mhc_num_streams,
                 num_fracs=mhc_num_fracs,
                 disable=not use_mhc,
             )
-        )
-        self.expand_stream = expand_stream
-        self.reduce_stream = reduce_stream
+        self.expand_stream = expand_stream if expand_stream is not None else (lambda x: x)
+        self.reduce_stream = reduce_stream if reduce_stream is not None else (lambda x: x)
         # -------------
 
         norm_layer_cls = norm_layer_dict[norm_layer]
@@ -214,7 +216,6 @@ class DinoVisionTransformer(nn.Module):
             )
             for i in range(depth)
         ]
-
 
         self.chunked_blocks = False
         self.blocks = nn.ModuleList(blocks_list)
@@ -289,6 +290,10 @@ class DinoVisionTransformer(nn.Module):
         rope = []
         for t_x, t_masks in zip(x_list, masks_list, strict=False):
             t2_x, hw_tuple = self.prepare_tokens_with_masks(t_x, t_masks)
+
+            # mHC: expand streams once at the input of the transformer
+            t2_x = self.expand_stream(t2_x)
+
             x.append(t2_x)
             rope.append(hw_tuple)
         for _, blk in enumerate(self.blocks):
@@ -300,6 +305,9 @@ class DinoVisionTransformer(nn.Module):
         all_x = x
         output = []
         for idx, (x, masks) in enumerate(zip(all_x, masks_list, strict=False)):
+            # mHC: reduce back to standard shape before norms / outputs
+            x = self.reduce_stream(x)
+
             if self.untie_cls_and_patch_norms or self.untie_global_and_local_cls_norm:
                 if self.untie_global_and_local_cls_norm and self.training and idx == 1:
                     # Assume second entry of list corresponds to local crops.
@@ -335,6 +343,10 @@ class DinoVisionTransformer(nn.Module):
 
     def _get_intermediate_layers_not_chunked(self, x: Tensor, n: int = 1) -> list[Tensor]:
         x, (H, W) = self.prepare_tokens_with_masks(x)
+
+        # mHC: expand once before running blocks
+        x = self.expand_stream(x)
+
         # If n is an int, take the n last blocks. If it's a list, take them
         output, total_block_len = [], len(self.blocks)
         blocks_to_take = range(total_block_len - n, total_block_len) if isinstance(n, int) else n
@@ -345,6 +357,9 @@ class DinoVisionTransformer(nn.Module):
                 rope_sincos = None
             x = blk(x, rope_sincos)
             if i in blocks_to_take:
+                # mHC: Append a reduced view/copy so returned tensors match expected (B, N, D)
+                x = self.reduce_stream(x)
+
                 output.append(x)
         assert len(output) == len(blocks_to_take), (
             f"only {len(output)} / {len(blocks_to_take)} blocks found"
@@ -400,6 +415,18 @@ class DinoVisionTransformer(nn.Module):
             return ret
         else:
             return self.head(ret["x_norm_clstoken"])
+
+    def forward_cls(self, *args, **kwargs) -> torch.Tensor | list[torch.Tensor]:
+        """
+        Return the normalized CLS token(s) before the classification head.
+        Mirrors forward_features’ input handling:
+        - Single tensor input -> returns a single tensor.
+        - List of tensors -> returns a list of tensors.
+        """
+        ret = self.forward_features(*args, **kwargs)
+        if isinstance(ret, list):
+            return [r["x_norm_clstoken"] for r in ret]
+        return ret["x_norm_clstoken"]
 
 
 def vit_tiny(patch_size=16, **kwargs):
