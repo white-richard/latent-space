@@ -109,7 +109,6 @@ def train(config: Config):
     datamodule.setup()
     num_train_batches = len(datamodule.train_dataloader())
     config.model.num_batches = num_train_batches
-    config.training.num_batches = num_train_batches
 
     # Initialize model
     module = VisionTransformerModule(config=config)
@@ -144,11 +143,12 @@ def train(config: Config):
     trainer.fit(module, datamodule=datamodule)
 
     # Test the model
-    trainer.test(module, datamodule=datamodule)
+    test_metrics_list = trainer.test(module, datamodule=datamodule)
+    test_metrics = test_metrics_list[0] if test_metrics_list else {}
 
     # Generate visualizations if requested
     if config.experiment.save_embeddings and not config.experiment.debug_mode:
         generate_visualizations(module, datamodule, config.experiment)
 
     print("\nTraining complete!")
-    return module, datamodule, trainer
+    return test_metrics 

@@ -1,0 +1,1 @@
+- Generalize experiment logging and move it to template

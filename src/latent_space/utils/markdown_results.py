@@ -208,6 +208,27 @@ class MarkdownTableLogger:
         headers, rows = parse_markdown_table(md)
         return (headers, rows)
 
+    def prepend(self, row: Mapping[str, Any]) -> None:
+        headers, rows = self._load()
+
+        if not headers:
+            if self._headers is None:
+                headers = list(row.keys())
+            else:
+                headers = list(self._headers)
+
+        if self.auto_expand_columns:
+            for k in row.keys():
+                if k not in headers:
+                    headers.append(k)
+
+        rows_any: list[dict[str, Any]] = [dict(row)]
+        rows_any.extend(dict(r) for r in rows)
+
+        out = render_markdown_table(headers, rows_any, float_precision=self.float_precision)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(out, encoding="utf-8")
+
     def append(self, row: Mapping[str, Any]) -> None:
         headers, rows = self._load()
 
