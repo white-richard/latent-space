@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from latent_space.utils.markdown_results import MarkdownTableLogger, config_to_row, merge_row
+from latent_space.utils.markdown_results import MarkdownTableLogger, merge_row
 
 from .config import Config, DataConfig, ExperimentConfig, ModelConfig, TrainingConfig
 from .train import train
@@ -124,7 +124,6 @@ def experiment_baseline():
     )
     with_mhc = base_config.experiment.run_mhc_variant
 
-
     print("\nRunning Baseline Experimentwith MHC" if with_mhc else "")
     # return train(config)
     results = []
@@ -189,7 +188,8 @@ def expand_w_mhc(config: Config) -> list[Config]:
         mhc.experiment.output_dir = mhc.experiment.output_dir / "mhc"
         mhc.experiment.is_mhc = True
         mhc.experiment.experiment_name = f"{mhc.experiment.experiment_name}_mhc"
-        configs.append(mhc)
+        # TODO verify this prepend works as intended with logging stats and all
+        configs.insert(0, mhc)
 
     return configs
 
