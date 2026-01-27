@@ -2,6 +2,85 @@
 
 # --- Experiment Path ---
 
+[Experiemnt path](./experiments/baseline_cifar10_004)
+
+## Experiemnt summary
+
+Same as before but with linear warmup
+
+## Hypothesis:
+
+- Training will stabilize but will not reach the same performance as WHD
+
+## Difference between this and previous experiment:
+
+- Linear warmup for scheduler
+
+## Results:
+
+### Regular
+
+### mHC
+
+## Conclusion:
+
+## Next steps:
+
+## Run status
+- ✅ Valid
+- ⚠️ Partially invalid (scheduler bug)
+- ❌ Invalid (discard for comparison)
+
+# -------------------------
+
+# --- Experiment Path ---
+
+[Experiemnt path](./experiments/baseline_cifar10_003)
+
+## Experiemnt summary
+
+Same expr as before but with cosine scheduler (no warmup for now)
+
+## Hypothesis:
+
+- It will do slightly worse than WHD due to not having a warmup. With warmup it will hardly be better or worse.
+
+## Difference between this and previous experiment:
+
+- WHD scheduler (before) vs. cosine (no warmup)
+
+## Results:
+
+### Regular
+
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 1.79887   | 0.3498   | 0.2375       | -0.0736918      |
+
+### mHC
+
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 1.68943   | 0.3987   | 0.289        | -0.0532864      |
+
+- Pretty strong learning collapse.
+- It is important to note that mHC training plots are much more stable than reg but neither converged.
+
+## Conclusion:
+
+- Implement cosine scheduler with linear warmup and run again
+
+## Next steps:
+
+- Same as above
+
+## Run status
+- ⚠️ Partially invalid
+
+# -------------------------
+
+# --- Experiment Path ---
+
 [Experiemnt path](./experiments/baseline_cifar10_002)
 
 ## Experiemnt summary
@@ -23,11 +102,31 @@
 
 ### Regular
 
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 0.330783  | 0.9241   | 0.8958       | 0.296391        |
+
 ### mHC
+
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 0.330276  | 0.9217   | 0.8964       | 0.289719        |
+
+- mHC did marginally worse in test acc and marginally better in knn_acc
+- However the umap locally had two more seperated clusters than reg
 
 ## Conclusion:
 
+- I think theres little difference between the two so far
+- The task may be too easy. Possibly Cifar100 will be more informative or Maybe ImagenetX?
+
 ## Next steps:
+
+- Determine a more informative task for the comparision
+- Compare WHD scheduler with cosine
+
+## Run status
+- ✅ Valid
 
 # -------------------------
 
@@ -86,11 +185,23 @@ I think primarily the implementation of mHC is the reason for the lower performa
 
 ## Experiemnt summary
 
+### Basic Details TODO auto fill in
+
+- Datetime
+- Dataset: CIFAR-10
+- Model: <arch name>
+- Optimizer: <type + base LR>
+- Regular = baseline residual connections
+- mHC = <one-sentence description>
+- WHD = <one-sentence description>
+
 ## Hypothesis:
 
 ## Difference between this and previous experiment:
 
 ## Results:
+
+## Observations / Interpretation
 
 ### Regular
 
@@ -99,5 +210,10 @@ I think primarily the implementation of mHC is the reason for the lower performa
 ## Conclusion:
 
 ## Next steps:
+
+## Run status
+- ✅ Valid
+- ⚠️ Partially invalid (scheduler bug)
+- ❌ Invalid (discard for comparison)
 
 # -------------------------

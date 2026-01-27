@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -95,8 +97,6 @@ class VisionTransformerModule(pl.LightningModule):
         """Test step."""
         X, y = batch
         embeddings = self.forward_cls(X)
-        print(f"Embeddings shape: {embeddings.shape}")
-        raise ValueError("Debug stop, make sure it is a vector output")
         logits = self.forward_head(embeddings)
         loss = self.criterion(logits, y)
 
@@ -110,17 +110,16 @@ class VisionTransformerModule(pl.LightningModule):
 
         return {"test_loss": loss, "test_acc": acc}
 
-    def on_test_end(self):
+    def on_test_epoch_end(self):
         embeddings, labels = self.get_embeddings(self.trainer.datamodule.test_dataloader())
 
-        knn_acc, y_knn = self.knn_accuracy_in_embedding_space(embeddings, labels, k=1)
-        # cm, label_list, per_class = self.per_class_confusion_matrix(labels, y_knn, normalize=None)
-        overall_sil, sil_by_class, sil_per_sample = self.silhouette_score_by_class(
-            embeddings, labels
-        )
+        # Compute metrics
+        knn_acc, _ = self.knn_accuracy_in_embedding_space(embeddings, labels, k=1)
+        overall_sil, _, _ = self.silhouette_score_by_class(embeddings, labels)
+
+        # Log so they show up in the test metrics dict
         self.log("test/knn_acc", knn_acc, prog_bar=False)
         self.log("test/silhouette", overall_sil, prog_bar=False)
-
 
     def configure_optimizers(self):
         """Configure optimizer and learning rate scheduler."""
@@ -132,14 +131,28 @@ class VisionTransformerModule(pl.LightningModule):
 
         num_batches = self.config.model.num_batches
         if num_batches is None:
-            raise ValueError(
-                "TrainingConfig.num_batches must be set before training."
-            )
+            raise ValueError("TrainingConfig.num_batches must be set before training.")
+
         n_iters = num_batches * self.config.training.epochs
+        warmup_steps = int(self.config.training.frac_warmup * n_iters)
+
+        base_lr = self.config.training.lr
+        min_lr = base_lr * self.config.training.lr_min_factor
+
+        def lr_lambda(current_step: int):
+            # Linear warmup
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+            # Cosine decay
+            progress = (current_step - warmup_steps) / float(max(1, n_iters - warmup_steps))
+            cosine_decay = 0.5 * (1.0 + math.cos(math.pi * progress))
+            return max(min_lr / base_lr, cosine_decay)
 
         if self.config.training.scheduler_name == "cosine":
-            raise NotImplementedError("Cosine scheduler not implemented")
-
+            scheduler = torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                lr_lambda=lr_lambda,
+            )
         elif self.config.training.scheduler_name == "warmup_hold_decay":
             from latent_space.schedulers.warm_hold_decay_scheduler import WHDScheduler
 
