@@ -6,6 +6,8 @@
 
 ## Experiemnt summary
 
+**Datetime** 2026-01-28_18-16-15
+
 Same as before but with linear warmup
 
 ## Hypothesis:
@@ -20,16 +22,28 @@ Same as before but with linear warmup
 
 ### Regular
 
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 0.375199  | 0.917    | 0.8927       | 0.267229        |
+
 ### mHC
 
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 0.325173  | 0.9214   | 0.8928       | 0.262401        |
+
 ## Conclusion:
+
+- Okay so the linear warmup was crucial
+- However, cosine scheduler did not out perform WHD
+- Need to try on cifar100
+- Should try a more informative dataset and maybe more a metric learning task
 
 ## Next steps:
 
 ## Run status
+
 - ✅ Valid
-- ⚠️ Partially invalid (scheduler bug)
-- ❌ Invalid (discard for comparison)
 
 # -------------------------
 
@@ -75,6 +89,7 @@ Same expr as before but with cosine scheduler (no warmup for now)
 - Same as above
 
 ## Run status
+
 - ⚠️ Partially invalid
 
 # -------------------------
@@ -126,6 +141,7 @@ Same expr as before but with cosine scheduler (no warmup for now)
 - Compare WHD scheduler with cosine
 
 ## Run status
+
 - ✅ Valid
 
 # -------------------------
@@ -212,6 +228,7 @@ I think primarily the implementation of mHC is the reason for the lower performa
 ## Next steps:
 
 ## Run status
+
 - ✅ Valid
 - ⚠️ Partially invalid (scheduler bug)
 - ❌ Invalid (discard for comparison)
