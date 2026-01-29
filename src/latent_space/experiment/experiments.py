@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-from .experiment_runner import (
+from latent_space.experiment.experiment_runner import (
     BASE_DIR,
     create_experiment_dir,
     make_variant_builder,
