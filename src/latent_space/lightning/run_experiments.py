@@ -6,11 +6,16 @@ import copy
 import datetime
 import re
 import shutil
+from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
-from latent_space.utils.markdown_results import MarkdownTableLogger, merge_row
+from latent_space.utils.markdown_results import (
+    MarkdownTableLogger,
+    merge_row,
+)
 
 from .config import Config, DataConfig, ExperimentConfig, ModelConfig, TrainingConfig
 from .train import train
@@ -58,6 +63,47 @@ def prepare_experiment_artifacts(config: Config) -> None:
     archive_experiment_state(Path(config.experiment.output_dir))
 
 
+def render_summary_section(title: str, results_md_path: Path) -> list[str]:
+    if results_md_path.exists():
+        table = results_md_path.read_text(encoding="utf-8").strip()
+    else:
+        table = "_No results logged yet._"
+    return [f"### {title}", table]
+
+
+def write_experiment_summary(experiment_root: Path, records: list[tuple[str, Path]]) -> None:
+    if not records:
+        return
+
+    link_target = (
+        experiment_root.parent if experiment_root.parent != experiment_root else experiment_root
+    )
+    link_path = f"./{link_target.as_posix().lstrip('./')}"
+    timestamp = experiment_root.name
+    lines: list[str] = [
+        "# --- Experiment Path ---",
+        f"[Experiemnt path]({link_path})",
+        "",
+        "## Experiemnt summary",
+        f"**Datetime** {timestamp}",
+        "",
+    ]
+
+    base_label, base_results_path = records[0]
+    base_section_title = "Regular" if base_label.lower() == "regular" else f"Varient {base_label}"
+    lines.extend(render_summary_section(base_section_title, base_results_path))
+
+    for label, results_path in records[1:]:
+        lines.append("")
+        lines.extend(render_summary_section(f"Varient {label}", results_path))
+
+    lines.append("")
+
+    summary_path = Path(experiment_root) / "experiment_summary.md"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def create_experiment_dir(
     experiment_name: str,
     base_dir: Path = Path("./experiments"),
@@ -87,19 +133,84 @@ def create_experiment_dir(
     return output_dir
 
 
-def experiment_baseline():
-    """Baseline configuration"""
-    use_cifar100 = False
-    experiment_name = experiment_baseline.__name__.removeprefix("experiment_")
-    dataset_name = "cifar100" if use_cifar100 else "cifar10"
-    experiment_name = experiment_name + f"_{dataset_name}"
+def experiment_baseline_cifar100(
+    variant_builders: Iterable[Callable[[Config], Config]] | None = None,
+):
+    experiment_name = experiment_baseline_cifar100.__name__.removeprefix("experiment_")
 
     output_dir = create_experiment_dir(experiment_name, BASE_DIR)
     base_config = Config(
         data=DataConfig(
             batch_size=256,
             num_workers=16,
-            use_cifar100=use_cifar100,
+            use_cifar100=True,
+        ),
+        model=ModelConfig(
+            model_name="vit_tiny",
+        ),
+        training=TrainingConfig(
+            epochs=400,
+            lr=0.003,
+            weight_decay=0.05,
+            clip_norm=5.0,
+            use_bfloat16=True,
+            scheduler_name="warmup_hold_decay",
+            # scheduler_name="cosine",
+            start_cooldown_immediately=False,  # Use on a ckpt when you want to start cooldown
+            auto_trigger_cooldown=True,
+        ),
+        experiment=ExperimentConfig(
+            experiment_name=experiment_name,
+            seed=42,
+            debug_mode=False,
+            output_dir=output_dir,
+        ),
+    )
+
+    variant_builders = [
+        make_variant_builder(
+            # name_suffix="_mHC", # optional suffix to model name
+            output_subdir="mHC",
+            experiment_suffix="_mHC",
+            overrides={
+                "experiment.run_mhc_variant": True,
+            },
+        )
+    ]
+
+    results = []
+    summary_rows: list[tuple[str, Path]] = []
+    for idx, config in enumerate(expand_with_variants(base_config, variant_builders)):
+        prepare_experiment_artifacts(config)
+        results_path = Path(config.experiment.output_dir) / "results.md"
+        logger = MarkdownTableLogger(results_path)
+        print(f"\nRunning Baseline Experiment ({config.model.model_name})")
+        result = train(config)
+        results.append(result)
+
+        # For markdown logging
+        row = merge_row(
+            {"metrics": result} if not isinstance(result, dict) else result,  # adapt
+        )
+        logger.append(row)
+        label = "Regular" if idx == 0 else config.experiment.experiment_name
+        summary_rows.append((label, results_path))
+
+    write_experiment_summary(output_dir, summary_rows)
+    return results
+
+
+def experiment_baseline_cifar10(
+    variant_builders: Iterable[Callable[[Config], Config]] | None = None,
+):
+    experiment_name = experiment_baseline_cifar10.__name__.removeprefix("experiment_")
+
+    output_dir = create_experiment_dir(experiment_name, BASE_DIR)
+    base_config = Config(
+        data=DataConfig(
+            batch_size=256,
+            num_workers=16,
+            use_cifar100=False,
         ),
         model=ModelConfig(
             model_name="vit_tiny",
@@ -111,6 +222,7 @@ def experiment_baseline():
             clip_norm=0.0,
             use_bfloat16=True,
             scheduler_name="warmup_hold_decay",
+            # scheduler_name="cosine",
             start_cooldown_immediately=False,  # Use on a ckpt when you want to start cooldown
             auto_trigger_cooldown=True,
         ),
@@ -119,17 +231,15 @@ def experiment_baseline():
             seed=42,
             debug_mode=False,
             output_dir=output_dir,
-            run_mhc_variant=True,
         ),
     )
-    with_mhc = base_config.experiment.run_mhc_variant
 
-    print("\nRunning Baseline Experimentwith MHC" if with_mhc else "")
-    # return train(config)
     results = []
-    for config in expand_w_mhc(base_config):
+    summary_rows: list[tuple[str, Path]] = []
+    for idx, config in enumerate(expand_with_variants(base_config, variant_builders)):
         prepare_experiment_artifacts(config)
-        logger = MarkdownTableLogger(Path(config.experiment.output_dir) / "results.md")
+        results_path = Path(config.experiment.output_dir) / "results.md"
+        logger = MarkdownTableLogger(results_path)
         print(f"\nRunning Baseline Experiment ({config.model.model_name})")
         result = train(config)
         results.append(result)
@@ -139,14 +249,21 @@ def experiment_baseline():
             {"metrics": result} if not isinstance(result, dict) else result,  # adapt
         )
         logger.append(row)
+        label = "Regular" if idx == 0 else config.experiment.experiment_name
+        summary_rows.append((label, results_path))
 
+    write_experiment_summary(output_dir, summary_rows)
     return results
 
 
 def experiment_ensemble_seeds(
-    base_config: Config, num_seeds: int = 5, seed_generator_seed: int | None = None
+    base_config: Config,
+    num_seeds: int = 5,
+    seed_generator_seed: int | None = None,
+    variant_builders: Iterable[Callable[[Config], Config]] | None = None,
 ):
     results = []
+    summary_rows: list[tuple[str, Path]] = []
     rng = np.random.default_rng(seed_generator_seed)
     seeds = rng.integers(low=1, high=10000, size=num_seeds)
 
@@ -156,40 +273,123 @@ def experiment_ensemble_seeds(
 
         per_seed_base.experiment.output_dir = base_config.experiment.output_dir / f"seed_{seed}"
 
-        for config in expand_w_mhc(per_seed_base):
+        for config in expand_with_variants(per_seed_base, variant_builders):
             prepare_experiment_artifacts(config)
+            results_path = Path(config.experiment.output_dir) / "results.md"
+            logger = MarkdownTableLogger(results_path)
             print(f"\nRunning Ensemble Experiment (Seed {seed}) ({config.model.model_name})")
             result = train(config)
+            result_row = merge_row(
+                {"seed": int(seed), "model_name": config.model.model_name},
+                {"metrics": result} if not isinstance(result, dict) else result,
+            )
+            logger.append(result_row)
             results.append(
                 {"seed": int(seed), "model_name": config.model.model_name, "result": result}
             )
+            summary_rows.append((f"seed_{seed}_{config.experiment.experiment_name}", results_path))
 
+    write_experiment_summary(Path(base_config.experiment.output_dir), summary_rows)
     return results
 
 
 # Experiment registry
 EXPERIMENTS = {
-    "baseline": experiment_baseline,
+    "baseline": experiment_baseline_cifar10,
+    "baseline_cifar100": experiment_baseline_cifar100,
     "ensemble": experiment_ensemble_seeds,
 }
 
 
-def expand_w_mhc(config: Config) -> list[Config]:
-    """Return configs including optional mhc variant based on ExperimentConfig."""
-    configs: list[Config] = [copy.deepcopy(config)]
+def apply_dotted_overrides(config: Config, overrides: dict[str, Any] | None) -> Config:
+    """Deep copy config and apply dotted-path overrides (e.g., 'training.lr')."""
+    updated = copy.deepcopy(config)
+    if not overrides:
+        return updated
 
-    if config.experiment.run_mhc_variant:
-        mhc = copy.deepcopy(config)
+    for dotted_key, value in overrides.items():
+        target = updated
+        parts = dotted_key.split(".")
+        for attr in parts[:-1]:
+            if isinstance(target, dict):
+                if attr not in target:
+                    raise ValueError(f"Cannot apply override '{dotted_key}': missing '{attr}'")
+                target = target[attr]
+            else:
+                if not hasattr(target, attr):
+                    raise ValueError(f"Cannot apply override '{dotted_key}': missing '{attr}'")
+                target = getattr(target, attr)
+        leaf = parts[-1]
+        if isinstance(target, dict):
+            if leaf not in target:
+                raise ValueError(f"Cannot apply override '{dotted_key}': missing '{leaf}'")
+            target[leaf] = value
+        else:
+            if not hasattr(target, leaf):
+                raise ValueError(f"Cannot apply override '{dotted_key}': missing '{leaf}'")
+            setattr(target, leaf, value)
 
-        # avoid double-append
-        if not mhc.model.model_name.endswith("_mhc"):
-            mhc.model.model_name = f"{mhc.model.model_name}_mhc"
+    return updated
 
-        mhc.experiment.output_dir = mhc.experiment.output_dir / "mhc"
-        mhc.experiment.is_mhc = True
-        mhc.experiment.experiment_name = f"{mhc.experiment.experiment_name}_mhc"
-        # TODO verify this prepend works as intended with logging stats and all
-        configs.insert(0, mhc)
+
+def make_variant_builder(
+    *,
+    name_suffix: str | None = None,
+    output_subdir: str | None = None,
+    experiment_suffix: str | None = None,
+    overrides: dict[str, Any] | None = None,
+) -> Callable[[Config], Config]:
+    """
+    Factory that returns a variant builder which:
+      - applies dotted overrides to any nested dataclass fields
+      - optionally appends a suffix to the model name
+      - optionally appends a subdirectory to the output_dir
+      - optionally appends a suffix to the experiment name
+    """
+
+    def _builder(base: Config) -> Config:
+        variant = apply_dotted_overrides(base, overrides)
+
+        if name_suffix and hasattr(variant, "model") and hasattr(variant.model, "model_name"):
+            variant.model.model_name = f"{variant.model.model_name}{name_suffix}"
+        if (
+            output_subdir
+            and hasattr(variant, "experiment")
+            and hasattr(variant.experiment, "output_dir")
+        ):
+            variant.experiment.output_dir = Path(variant.experiment.output_dir) / output_subdir
+        if (
+            experiment_suffix
+            and hasattr(variant, "experiment")
+            and hasattr(variant.experiment, "experiment_name")
+        ):
+            variant.experiment.experiment_name = (
+                f"{variant.experiment.experiment_name}{experiment_suffix}"
+            )
+
+        return variant
+
+    return _builder
+
+
+def expand_with_variants(
+    config: Config,
+    variant_builders: Iterable[Callable[[Config], Config | Iterable[Config]]] | None = None,
+) -> list[Config]:
+    """Return the base config plus any additional variants created by user-supplied builders."""
+    base = copy.deepcopy(config)
+    configs: list[Config] = [base]
+
+    for build_variant in variant_builders or []:
+        built = build_variant(copy.deepcopy(base))
+        if isinstance(built, Config):
+            configs.append(built)
+        elif isinstance(built, Iterable) and not isinstance(built, (str, bytes)):
+            configs.extend(built)
+        else:
+            raise TypeError(
+                f"Variant builder must return a Config or iterable of Config, got {type(built)}"
+            )
 
     return configs
 
