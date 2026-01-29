@@ -1,1 +1,0 @@
-"""Configuration files for DINOv3 Lightning training."""

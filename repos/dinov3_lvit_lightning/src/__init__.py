@@ -1,1 +1,0 @@
-"""DinoV3 Lightning training package."""

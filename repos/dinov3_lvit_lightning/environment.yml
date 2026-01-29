@@ -1,6 +1,0 @@
-name: deeplearning
-dependencies:
-  - python=3.11.0
-  - pip
-  - pip:
-    - -r requirements.txt
