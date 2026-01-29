@@ -31,7 +31,7 @@ def experiment_baseline_cifar100():
             model_name="vit_small",
         ),
         training=TrainingConfig(
-            epochs=400,
+            epochs=320,
             lr=0.001,
             weight_decay=0.05,
             clip_norm=None,
@@ -57,7 +57,7 @@ def experiment_baseline_cifar100():
                 output_subdir="mHC",
                 experiment_suffix="_mHC",
                 overrides={
-                    "experiment.run_mhc_variant": True,
+                    "model.use_mhc": True,
                 },
             )
         ]

@@ -7,7 +7,7 @@ import torch.nn as nn
 from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 
-from latent_space.models.vision_transformer.vision_transformer import vit_tiny, vit_small
+from latent_space.models.vision_transformer.vision_transformer import vit_small, vit_tiny
 
 from .config import Config
 
@@ -19,23 +19,17 @@ class VisionTransformerModule(pl.LightningModule):
 
         self.config = config
 
-        # Initialize model
         if self.config.model.model_name == "vit_tiny":
             self.model = vit_tiny(
                 patch_size=self.config.model.patch_size,
                 num_classes=self.config.model.num_classes,
+                use_mhc=self.config.model.use_mhc,
             )
         elif self.config.model.model_name == "vit_small":
             self.model = vit_small(
                 patch_size=self.config.model.patch_size,
                 num_classes=self.config.model.num_classes,
-            )
-
-        elif self.config.model.model_name == "vit_tiny_mhc":
-            self.model = vit_tiny(
-                patch_size=self.config.model.patch_size,
-                num_classes=self.config.model.num_classes,
-                use_mhc=True,
+                use_mhc=self.config.model.use_mhc,
             )
         else:
             raise ValueError(f"Unsupported model_name: {self.config.model.model_name}")
@@ -254,10 +248,7 @@ class VisionTransformerModule(pl.LightningModule):
         y_t = np.asarray(y_true)
         y_p = np.asarray(y_pred)
 
-        if labels is None:
-            label_list = np.unique(np.concatenate([y_t, y_p]))
-        else:
-            label_list = np.asarray(labels)
+        label_list = np.unique(np.concatenate([y_t, y_p])) if labels is None else np.asarray(labels)
 
         cm = confusion_matrix(y_t, y_p, labels=label_list, normalize=normalize)
 

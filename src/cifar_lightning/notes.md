@@ -1,5 +1,9 @@
 # Expeirment Notes
 
+mhc_num_fracs: int = 1,
+need to adjust these, they are set to 1, what does that mean?
+mhc_num_streams
+
 # --- Experiment Path ---
 
 [Experiemnt path](./experiments/baseline_cifar10_004)

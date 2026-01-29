@@ -8,16 +8,12 @@ class ExperimentConfig:
 
     output_dir: str = "./experiments"
     seed: int = 42  # -1 to disable
-    run_mhc_variant: bool = False
     debug_mode: bool = False
 
     # Visualization parameters
     save_embeddings: bool = True
     umap_n_neighbors: list[int] = field(default_factory=lambda: [5, 15, 50])
     umap_min_dist: float = 0.1
-
-    # Runtime fields
-    is_mhc: bool = False
 
 
 @dataclass
@@ -34,12 +30,12 @@ class DataConfig:
     jitter: float = 0.1
 
 
-
 @dataclass
 class ModelConfig:
-    model_name: Literal["vit_tiny", "vit_tiny_mhc"] = "vit_tiny"
+    model_name: Literal["vit_tiny", "vit_small"] = "vit_tiny"
     patch_size: int = 4
     num_classes: int | None = None
+    use_mhc: bool = False
 
 
 @dataclass
@@ -53,8 +49,8 @@ class TrainingConfig:
 
     # Scheduler parameters
     scheduler_name: Literal["cosine", "warmup_hold_decay"] = "warmup_hold_decay"
-    
-    lr_min_factor: float = 0.1 # TODO abalate? # lr * this factor = min lr
+
+    lr_min_factor: float = 0.1  # TODO abalate? # lr * this factor = min lr
     # Warmup Hold Decay
     frac_warmup: float = 0.1
     decay_type: str = "1-sqrt"
