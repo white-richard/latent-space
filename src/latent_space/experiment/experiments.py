@@ -18,6 +18,7 @@ How to use:
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -50,7 +51,8 @@ class ModelConfig:
 
 @dataclass
 class Config:
-    """ Top-level experiment configuration. """
+    """Top-level experiment configuration."""
+
     data: DataConfig
     model: ModelConfig
 
@@ -121,3 +123,8 @@ def experiment_example_task():
 #         experiment_label_prefix="My New Dataset",
 #     )
 # ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import latent_space.experiment.experiment_runner as experiment_runner
+
+    experiment_runner.main(experiments_module=sys.modules[__name__])
