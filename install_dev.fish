@@ -1,5 +1,4 @@
 #!/usr/bin/env fish
-# install_dev.fish
 # Run from anywhere; installs this repo's requirements + editable install into the current environment.
 
 function _die
@@ -7,7 +6,6 @@ function _die
     exit 1
 end
 
-# Locate the directory this script lives in (repo root if you place it there)
 set -l script_path (status --current-filename)
 test -n "$script_path"; or _die "Can't determine script path (status --current-filename is empty)."
 
@@ -23,7 +21,7 @@ echo "Repo: $repo_dir"
 echo "Using requirements: $req_file"
 echo
 
-# Install deps + editable install of THIS repo (portable, no absolute hardcoding)
+# Install deps + editable install of thi repo
 uv pip install -r "$req_file"; or _die "uv pip install -r failed"
 uv pip install -e "$repo_dir"; or _die "uv pip install -e failed"
 
