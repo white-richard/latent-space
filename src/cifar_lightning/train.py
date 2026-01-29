@@ -134,7 +134,9 @@ def train(config: Config):
         logger=logger,
         deterministic=True,
         log_every_n_steps=10,
-        gradient_clip_val=config.training.clip_norm if config.training.clip_norm > 0 else None,
+        gradient_clip_val=config.training.clip_norm
+        if config.training.clip_norm and config.training.clip_norm > 0
+        else None,
         fast_dev_run=config.experiment.debug_mode,
     )
 

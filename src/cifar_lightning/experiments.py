@@ -34,7 +34,7 @@ def experiment_baseline_cifar100():
             epochs=400,
             lr=0.001,
             weight_decay=0.05,
-            clip_norm=5.0,
+            clip_norm=None,
             use_bfloat16=True,
             scheduler_name="warmup_hold_decay",
             # scheduler_name="cosine",
@@ -44,7 +44,7 @@ def experiment_baseline_cifar100():
         experiment=ExperimentConfig(
             experiment_name=experiment_name,
             seed=42,
-            debug_mode=True,
+            debug_mode=False,
             output_dir=output_dir,
         ),
     )
