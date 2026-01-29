@@ -35,15 +35,7 @@ If you're using `fish`, you can run:
 fish install_dev.fish
 ```
 
-This is intended to install the project in development mode and set up any development dependencies.
-
-### Manual installation
-
-If you prefer to install manually, you can typically run:
-
-```bash
-pip install -e .
-```
+This is intended to install the project and set up any dependencies.
 
 ## Usage
 
@@ -77,10 +69,10 @@ If you want to hack on this project:
 
 2. **Install development dependencies**
 
-    Using `pip`:
+    Using `uv`:
 
     ```bash
-    pip install -e ".[dev]"
+    uv pip install -e ".[dev]"
     ```
 
     Or using the provided `fish` script:
