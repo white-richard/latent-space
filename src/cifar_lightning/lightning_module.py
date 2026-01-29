@@ -7,7 +7,7 @@ import torch.nn as nn
 from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 
-from latent_space.models.vision_transformer.vision_transformer import vit_tiny
+from latent_space.models.vision_transformer.vision_transformer import vit_tiny, vit_small
 
 from .config import Config
 
@@ -22,6 +22,11 @@ class VisionTransformerModule(pl.LightningModule):
         # Initialize model
         if self.config.model.model_name == "vit_tiny":
             self.model = vit_tiny(
+                patch_size=self.config.model.patch_size,
+                num_classes=self.config.model.num_classes,
+            )
+        elif self.config.model.model_name == "vit_small":
+            self.model = vit_small(
                 patch_size=self.config.model.patch_size,
                 num_classes=self.config.model.num_classes,
             )
@@ -186,12 +191,7 @@ class VisionTransformerModule(pl.LightningModule):
         }
 
     def on_before_optimizer_step(self, optimizer):
-        """Clip gradients if configured."""
-        if self.config.training.clip_norm > 0:
-            torch.nn.utils.clip_grad_norm_(
-                self.parameters(),
-                self.config.training.clip_norm,
-            )
+        pass
 
     def get_embeddings(self, dataloader):
         """Extract embeddings from the model (without classification head)."""
