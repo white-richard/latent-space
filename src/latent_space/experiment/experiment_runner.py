@@ -160,7 +160,9 @@ def run_experiment_with_variants(
         results_path = Path(config.experiment.output_dir) / "results.md"
         logger = MarkdownTableLogger(results_path)
 
-        print(f"\nRunning {experiment_label_prefix} Experiment ({config.model.model_name})")
+        print(
+            f"\nRunning {experiment_label_prefix} Experiment ({config.experiment.experiment_name})"
+        )
         result = run_fn(config)
         results.append(result)
 
@@ -223,17 +225,23 @@ def experiment_ensemble_seeds(
             results_path = Path(config.experiment.output_dir) / "results.md"
             logger = MarkdownTableLogger(results_path)
 
-            print(f"\nRunning Ensemble Experiment (Seed {seed}) ({config.model.model_name})")
+            print(
+                f"\nRunning Ensemble Experiment (Seed {seed}) ({config.experiment.experiment_name})"
+            )
             result = run_fn(config)
 
             result_row = merge_row(
-                {"seed": int(seed), "model_name": config.model.model_name},
+                {"seed": int(seed), "model_name": config.experiment.experiment_name},
                 {"metrics": result} if not isinstance(result, dict) else result,
             )
             logger.append(result_row)
 
             results.append(
-                {"seed": int(seed), "model_name": config.model.model_name, "result": result}
+                {
+                    "seed": int(seed),
+                    "model_name": config.experiment.experiment_name,
+                    "result": result,
+                }
             )
             summary_rows.append((f"seed_{seed}_{config.experiment.experiment_name}", results_path))
 
