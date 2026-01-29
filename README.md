@@ -4,13 +4,6 @@ Lightly organized machine learning code I've written or gathered, along with a s
 
 > Important: Much of the code in this repository originates from other authors and projects. I do **not** claim ownership of that third‑party code. Where possible, original licenses, copyright notices, and links to sources are preserved or referenced.
 
-## Repository
-
-```bash
-git clone git@github.com:white-richard/latent-space.git
-cd latent-space
-```
-
 ## Features
 
 - Collection of ML experimentation scripts and utilities
@@ -19,6 +12,22 @@ cd latent-space
 - Designed for interactive use in notebooks and scripts
 
 ## Installation
+
+### How to clone
+
+Must use --recurse-submodules
+
+```bash
+git clone --recurse-submodules git@github.com:white-richard/latent-space.git
+```
+
+If it is already cloned:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Virtual Environment
 
 Set up a virtual environment (recommended to use `uv`):
 
