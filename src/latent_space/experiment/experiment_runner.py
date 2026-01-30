@@ -144,7 +144,9 @@ def _extract_row_label_payload(result: Any) -> tuple[Sequence[Any], str, dict[st
     if row_labels is None:
         return None
     row_label_header = result.get("__row_label_header", "name")
-    columns = {k: v for k, v in result.items() if not k.startswith("__row_label")}
+    columns = {
+        k: v for k, v in result.items() if not (isinstance(k, str) and k.startswith("__row_label"))
+    }
     return row_labels, row_label_header, columns
 
 
@@ -239,7 +241,7 @@ def aggregate_seeds_run_experiment_with_variants(
             accum = {} if accum is None else accum
             merged: dict[str, Any] = {}
             for k, v in value.items():
-                if k.startswith("__row_label"):
+                if isinstance(k, str) and k.startswith("__row_label"):
                     merged[k] = accum.get(k, v)
                 else:
                     merged[k] = _add_metrics(accum.get(k), v)
@@ -249,13 +251,15 @@ def aggregate_seeds_run_experiment_with_variants(
             if len(accum) != len(value):
                 raise ValueError("Metric list lengths differ across seeds.")
             return [_add_metrics(a, b) for a, b in zip(accum, value, strict=False)]
+        if value is None:
+            return 0.0 if accum is None else accum
         return (0.0 if accum is None else float(accum)) + float(value)
 
     def _average_metrics(total: Any, divisor: int) -> Any:
         if isinstance(total, dict):
             averaged: dict[str, Any] = {}
             for k, v in total.items():
-                if k.startswith("__row_label"):
+                if isinstance(k, str) and k.startswith("__row_label"):
                     averaged[k] = v
                 else:
                     averaged[k] = _average_metrics(v, divisor)
