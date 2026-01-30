@@ -141,7 +141,6 @@ def run_experiment_with_variants(
     *,
     base_config: Any,
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
-    experiment_label_prefix: str = "Baseline",
 ) -> list[Any]:
     """
     Generic helper to:
@@ -161,7 +160,7 @@ def run_experiment_with_variants(
         logger = MarkdownTableLogger(results_path)
 
         print(
-            f"\nRunning {experiment_label_prefix} Experiment ({config.experiment.experiment_name})"
+            f"\nExperiment ({config.experiment.experiment_name})"
         )
         result = run_fn(config)
         results.append(result)
@@ -180,7 +179,7 @@ def run_experiment_with_variants(
     return results
 
 
-def experiment_ensemble_seeds(
+def aggregate_seeds_run_experiment_with_variants(
     run_fn: Callable[[Any], Any],
     *,
     base_config: Any,
@@ -207,7 +206,27 @@ def experiment_ensemble_seeds(
         Optional iterable of variant builders (see `make_variant_builder`) to
         create additional configurations per seed.
     """
-    results: list[dict[str, Any]] = []
+
+    def _add_metrics(accum: Any, value: Any) -> Any:
+        if isinstance(value, dict):
+            accum = {} if accum is None else accum
+            return {k: _add_metrics(accum.get(k), value[k]) for k in value}
+        if isinstance(value, list):
+            accum = [0.0] * len(value) if accum is None else accum
+            if len(accum) != len(value):
+                raise ValueError("Metric list lengths differ across seeds.")
+            return [a + float(b) for a, b in zip(accum, value, strict=False)]
+        return (0.0 if accum is None else float(accum)) + float(value)
+
+    def _average_metrics(total: Any, divisor: int) -> Any:
+        if isinstance(total, dict):
+            return {k: _average_metrics(v, divisor) for k, v in total.items()}
+        if isinstance(total, list):
+            return [_average_metrics(v, divisor) for v in total]
+        return float(total) / divisor
+
+    aggregated_results: dict[str, Any] = {}
+    counts: dict[str, int] = {}
     summary_rows: list[tuple[str, Path]] = []
 
     rng = np.random.default_rng(seed_generator_seed)
@@ -220,33 +239,41 @@ def experiment_ensemble_seeds(
             Path(base_config.experiment.output_dir) / f"seed_{seed}"
         )
 
-        for config in expand_with_variants(per_seed_base, variant_builders):
-            prepare_experiment_artifacts(config)
-            results_path = Path(config.experiment.output_dir) / "results.md"
-            logger = MarkdownTableLogger(results_path)
+        expanded_configs = expand_with_variants(per_seed_base, variant_builders)
+        results = run_experiment_with_variants(
+            run_fn,
+            base_config=per_seed_base,
+            variant_builders=variant_builders,
+        )
 
-            print(
-                f"\nRunning Ensemble Experiment (Seed {seed}) ({config.experiment.experiment_name})"
+        for config, result in zip(expanded_configs, results, strict=False):
+            metrics_dict = {"metrics": result} if not isinstance(result, dict) else result
+            model_name = config.experiment.experiment_name
+            aggregated_results[model_name] = _add_metrics(
+                aggregated_results.get(model_name), metrics_dict
             )
-            result = run_fn(config)
+            counts[model_name] = counts.get(model_name, 0) + 1
 
-            result_row = merge_row(
-                {"seed": int(seed), "model_name": config.experiment.experiment_name},
-                {"metrics": result} if not isinstance(result, dict) else result,
-            )
-            logger.append(result_row)
+    averaged_results = {
+        model_name: _average_metrics(total, counts[model_name])
+        for model_name, total in aggregated_results.items()
+    }
 
-            results.append(
-                {
-                    "seed": int(seed),
-                    "model_name": config.experiment.experiment_name,
-                    "result": result,
-                }
-            )
-            summary_rows.append((f"seed_{seed}_{config.experiment.experiment_name}", results_path))
+    base_output_dir = Path(base_config.experiment.output_dir)
+    base_output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = base_output_dir / "results.md"
+    logger = MarkdownTableLogger(results_path)
+    for model_name, averaged in averaged_results.items():
+        averaged_metrics_row = merge_row(
+            {"model_name": model_name},
+            {"metrics": averaged} if not isinstance(averaged, dict) else averaged,
+        )
+        logger.append(averaged_metrics_row)
+
+    summary_rows.append(("Ensemble Average", results_path))
 
     write_experiment_summary(Path(base_config.experiment.output_dir), summary_rows)
-    return results
+    return averaged_results
 
 
 def _load_experiments_module(experiments_module: Any | None = None):
@@ -286,7 +313,7 @@ def _discover_experiments(experiments_module: Any) -> dict[str, Callable[..., An
 
     # Also register generic / non-project specific ones defined in this module.
     # We expose 'ensemble' as a top-level experiment name.
-    registry["ensemble"] = experiment_ensemble_seeds
+    registry["ensemble"] = aggregate_seeds_run_experiment_with_variants
 
     # Optional: keep a short alias for a common baseline, if present.
     if "baseline_cifar10" in registry:
