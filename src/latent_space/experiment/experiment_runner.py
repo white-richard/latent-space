@@ -186,11 +186,12 @@ def aggregate_seeds_run_experiment_with_variants(
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
 ):
     """
-    Run an ensemble of experiments by varying the random seed.
+    Run an ensemble of experiments by varying the random seed and logging only aggregated results.
 
     This takes a base `dataclass`, samples `num_seeds` random seeds and runs an
-    experiment for each of them (and optionally their variants). Results and
-    per-seed summaries are written under the base `output_dir`.
+    experiment for each of them (and optionally their variants). Results are
+    aggregated across seeds per variant; no per-seed output directories are created,
+    and logging happens once per variant to the base `output_dir`.
 
     Parameters
     ----------
@@ -224,54 +225,41 @@ def aggregate_seeds_run_experiment_with_variants(
         return float(total) / divisor
 
     aggregated_results: dict[str, Any] = {}
-    counts: dict[str, int] = {}
     summary_rows: list[tuple[str, Path]] = []
 
     rng = np.random.default_rng(seed_generator_seed)
     seeds = rng.integers(low=1, high=10000, size=num_seeds)
 
-    for seed in seeds:
-        per_seed_base = copy.deepcopy(base_config)
-        per_seed_base.experiment.seed = int(seed)
-        per_seed_base.experiment.output_dir = (
-            Path(base_config.experiment.output_dir) / f"seed_{seed}"
-        )
+    expanded_configs = expand_with_variants(base_config, variant_builders)
 
-        expanded_configs = expand_with_variants(per_seed_base, variant_builders)
-        results = run_experiment_with_variants(
-            run_fn,
-            base_config=per_seed_base,
-            variant_builders=variant_builders,
-        )
+    for idx, config in enumerate(expanded_configs):
+        prepare_experiment_artifacts(config)
+        totals: Any = None
 
-        for config, result in zip(expanded_configs, results, strict=False):
+        for seed in seeds:
+            seeded_config = copy.deepcopy(config)
+            if hasattr(seeded_config, "experiment") and hasattr(seeded_config.experiment, "seed"):
+                seeded_config.experiment.seed = int(seed)
+            result = run_fn(seeded_config)
             metrics_dict = {"metrics": result} if not isinstance(result, dict) else result
-            model_name = config.experiment.experiment_name
-            aggregated_results[model_name] = _add_metrics(
-                aggregated_results.get(model_name), metrics_dict
-            )
-            counts[model_name] = counts.get(model_name, 0) + 1
+            totals = _add_metrics(totals, metrics_dict)
 
-    averaged_results = {
-        model_name: _average_metrics(total, counts[model_name])
-        for model_name, total in aggregated_results.items()
-    }
+        averaged = _average_metrics(totals, len(seeds))
+        aggregated_results[config.experiment.experiment_name] = averaged
 
-    base_output_dir = Path(base_config.experiment.output_dir)
-    base_output_dir.mkdir(parents=True, exist_ok=True)
-    results_path = base_output_dir / "results.md"
-    logger = MarkdownTableLogger(results_path)
-    for model_name, averaged in averaged_results.items():
-        averaged_metrics_row = merge_row(
-            {"model_name": model_name},
+        results_path = Path(config.experiment.output_dir) / "results.md"
+        logger = MarkdownTableLogger(results_path)
+        row = merge_row(
             {"metrics": averaged} if not isinstance(averaged, dict) else averaged,
         )
-        logger.append(averaged_metrics_row)
+        logger.append(row)
 
-    summary_rows.append(("Ensemble Average", results_path))
+        label = "Regular" if idx == 0 else config.experiment.experiment_name
+        summary_rows.append((label, results_path))
 
-    write_experiment_summary(Path(base_config.experiment.output_dir), summary_rows)
-    return averaged_results
+    experiment_root = Path(base_config.experiment.output_dir)
+    write_experiment_summary(experiment_root, summary_rows)
+    return aggregated_results
 
 
 def _load_experiments_module(experiments_module: Any | None = None):
