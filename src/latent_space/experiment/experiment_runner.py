@@ -159,9 +159,7 @@ def run_experiment_with_variants(
         results_path = Path(config.experiment.output_dir) / "results.md"
         logger = MarkdownTableLogger(results_path)
 
-        print(
-            f"\nExperiment ({config.experiment.experiment_name})"
-        )
+        print(f"\nExperiment ({config.experiment.experiment_name})")
         result = run_fn(config)
         results.append(result)
 
@@ -183,7 +181,7 @@ def aggregate_seeds_run_experiment_with_variants(
     run_fn: Callable[[Any], Any],
     *,
     base_config: Any,
-    num_seeds: int = 5,
+    num_seeds: int = 10,
     seed_generator_seed: int | None = None,
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
 ):
@@ -212,10 +210,10 @@ def aggregate_seeds_run_experiment_with_variants(
             accum = {} if accum is None else accum
             return {k: _add_metrics(accum.get(k), value[k]) for k in value}
         if isinstance(value, list):
-            accum = [0.0] * len(value) if accum is None else accum
+            accum = [None] * len(value) if accum is None else accum
             if len(accum) != len(value):
                 raise ValueError("Metric list lengths differ across seeds.")
-            return [a + float(b) for a, b in zip(accum, value, strict=False)]
+            return [_add_metrics(a, b) for a, b in zip(accum, value, strict=False)]
         return (0.0 if accum is None else float(accum)) + float(value)
 
     def _average_metrics(total: Any, divisor: int) -> Any:
