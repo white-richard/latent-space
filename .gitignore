@@ -2,6 +2,7 @@ temp/
 model_weights/
 data/
 experiments/
+uv.lock
 
 build/
 dist/
