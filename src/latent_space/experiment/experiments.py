@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 from latent_space.experiment.experiment_runner import (
     BASE_DIR,
+    DEFAULT_CODE_SNAPSHOT_DIRS,
     create_experiment_dir,
     make_variant_builder,
     run_experiment_with_variants,
@@ -105,6 +106,7 @@ def experiment_example_task():
         base_config=base_config,
         variant_builders=variant_builders,
         experiment_label_prefix="Example Task",
+        code_snapshot_dirs=DEFAULT_CODE_SNAPSHOT_DIRS,
     )
 
 

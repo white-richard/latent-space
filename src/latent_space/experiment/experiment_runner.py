@@ -9,7 +9,7 @@ import datetime
 import importlib
 import re
 import shutil
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -24,28 +24,26 @@ from latent_space.utils.markdown_results import (
 from .utils import get_git_commit
 
 BASE_DIR = Path("./experiments")
-LIGHTNING_SRC_DIR = Path(__file__).resolve().parent
 CODE_SNAPSHOT_DIRNAME = "code_snapshot"
 GIT_COMMIT_FILENAME = "git_commit.txt"
 
-# CHANGE: add any additional directories to save here
-OTHER_SAVE_DIRS = [
-    Path("../data_utils"),
-    Path("../models"),
-    Path("../utils"),
-    Path("../schedulers"),
+# Replace and pass from experiments.py
+DEFAULT_CODE_SNAPSHOT_DIRS = [
+    Path(__file__).resolve().parent,
+    Path(__file__).resolve().parent / "../data_utils",
+    Path(__file__).resolve().parent / "../models",
+    Path(__file__).resolve().parent / "../utils",
+    Path(__file__).resolve().parent / "../schedulers",
 ]
 
 
-def archive_experiment_state(output_dir: Path) -> None:
+def archive_experiment_state(output_dir: Path, *, code_dirs: Iterable[Path] | None = None) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_root = output_dir / CODE_SNAPSHOT_DIRNAME
     snapshot_root.mkdir(parents=True, exist_ok=True)
 
-    dirs_to_save = [LIGHTNING_SRC_DIR] + [
-        (LIGHTNING_SRC_DIR / rel_path).resolve() for rel_path in OTHER_SAVE_DIRS
-    ]
+    dirs_to_save = [Path(p).resolve() for p in (code_dirs or DEFAULT_CODE_SNAPSHOT_DIRS)]
 
     for src_dir in dirs_to_save:
         if not src_dir.exists():
@@ -58,12 +56,15 @@ def archive_experiment_state(output_dir: Path) -> None:
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
         )
 
-    git_commit = get_git_commit(LIGHTNING_SRC_DIR)
+    primary_src_dir = dirs_to_save[0] if dirs_to_save else Path(__file__).resolve().parent
+    git_commit = get_git_commit(primary_src_dir)
     (output_dir / GIT_COMMIT_FILENAME).write_text(f"{git_commit}\n", encoding="utf-8")
 
 
-def prepare_experiment_artifacts(config: dataclass) -> None:
-    archive_experiment_state(Path(config.experiment.output_dir))
+def prepare_experiment_artifacts(
+    config: dataclass, *, code_dirs: Iterable[Path] | None = None
+) -> None:
+    archive_experiment_state(Path(config.experiment.output_dir), code_dirs=code_dirs)
 
 
 def render_summary_section(title: str, results_md_path: Path) -> list[str]:
@@ -136,11 +137,24 @@ def create_experiment_dir(
     return output_dir
 
 
+def _extract_row_label_payload(result: Any) -> tuple[Sequence[Any], str, dict[str, Any]] | None:
+    if not isinstance(result, dict):
+        return None
+    row_labels = result.get("__row_labels")
+    if row_labels is None:
+        return None
+    row_label_header = result.get("__row_label_header", "name")
+    columns = {k: v for k, v in result.items() if not k.startswith("__row_label")}
+    return row_labels, row_label_header, columns
+
+
 def run_experiment_with_variants(
     run_fn: Callable[[Any], Any],
     *,
     base_config: Any,
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
+    code_snapshot_dirs: Iterable[Path] | None = None,
+    experiment_label_prefix: str | None = None,
 ) -> list[Any]:
     """
     Generic helper to:
@@ -155,7 +169,7 @@ def run_experiment_with_variants(
     summary_rows: list[tuple[str, Path]] = []
 
     for idx, config in enumerate(expand_with_variants(base_config, variant_builders)):
-        prepare_experiment_artifacts(config)
+        prepare_experiment_artifacts(config, code_dirs=code_snapshot_dirs)
         results_path = Path(config.experiment.output_dir) / "results.md"
         logger = MarkdownTableLogger(results_path)
 
@@ -163,12 +177,24 @@ def run_experiment_with_variants(
         result = run_fn(config)
         results.append(result)
 
-        row = merge_row(
-            {"metrics": result} if not isinstance(result, dict) else result,
-        )
-        logger.append(row)
+        row_label_payload = _extract_row_label_payload(result)
+        if row_label_payload:
+            row_labels, row_label_header, columns = row_label_payload
+            logger.append_columns(
+                columns,
+                row_labels=row_labels,
+                row_label_header=row_label_header,
+            )
+        else:
+            row = merge_row(
+                {"metrics": result} if not isinstance(result, dict) else result,
+            )
+            logger.append(row)
 
-        label = "Regular" if idx == 0 else config.experiment.experiment_name
+        base_label = "Regular" if idx == 0 else config.experiment.experiment_name
+        label = (
+            f"{experiment_label_prefix}: {base_label}" if experiment_label_prefix else base_label
+        )
         summary_rows.append((label, results_path))
 
     # Use the top-level experiment directory (the timestamped directory for base_config)
@@ -184,6 +210,8 @@ def aggregate_seeds_run_experiment_with_variants(
     num_seeds: int = 10,
     seed_generator_seed: int | None = None,
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
+    code_snapshot_dirs: Iterable[Path] | None = None,
+    experiment_label_prefix: str | None = None,
 ):
     """
     Run an ensemble of experiments by varying the random seed and logging only aggregated results.
@@ -209,7 +237,13 @@ def aggregate_seeds_run_experiment_with_variants(
     def _add_metrics(accum: Any, value: Any) -> Any:
         if isinstance(value, dict):
             accum = {} if accum is None else accum
-            return {k: _add_metrics(accum.get(k), value[k]) for k in value}
+            merged: dict[str, Any] = {}
+            for k, v in value.items():
+                if k.startswith("__row_label"):
+                    merged[k] = accum.get(k, v)
+                else:
+                    merged[k] = _add_metrics(accum.get(k), v)
+            return merged
         if isinstance(value, list):
             accum = [None] * len(value) if accum is None else accum
             if len(accum) != len(value):
@@ -219,7 +253,13 @@ def aggregate_seeds_run_experiment_with_variants(
 
     def _average_metrics(total: Any, divisor: int) -> Any:
         if isinstance(total, dict):
-            return {k: _average_metrics(v, divisor) for k, v in total.items()}
+            averaged: dict[str, Any] = {}
+            for k, v in total.items():
+                if k.startswith("__row_label"):
+                    averaged[k] = v
+                else:
+                    averaged[k] = _average_metrics(v, divisor)
+            return averaged
         if isinstance(total, list):
             return [_average_metrics(v, divisor) for v in total]
         return float(total) / divisor
@@ -233,7 +273,7 @@ def aggregate_seeds_run_experiment_with_variants(
     expanded_configs = expand_with_variants(base_config, variant_builders)
 
     for idx, config in enumerate(expanded_configs):
-        prepare_experiment_artifacts(config)
+        prepare_experiment_artifacts(config, code_dirs=code_snapshot_dirs)
         totals: Any = None
 
         for seed in seeds:
@@ -249,12 +289,24 @@ def aggregate_seeds_run_experiment_with_variants(
 
         results_path = Path(config.experiment.output_dir) / "results.md"
         logger = MarkdownTableLogger(results_path)
-        row = merge_row(
-            {"metrics": averaged} if not isinstance(averaged, dict) else averaged,
-        )
-        logger.append(row)
+        row_label_payload = _extract_row_label_payload(averaged)
+        if row_label_payload:
+            row_labels, row_label_header, columns = row_label_payload
+            logger.append_columns(
+                columns,
+                row_labels=row_labels,
+                row_label_header=row_label_header,
+            )
+        else:
+            row = merge_row(
+                {"metrics": averaged} if not isinstance(averaged, dict) else averaged,
+            )
+            logger.append(row)
 
-        label = "Regular" if idx == 0 else config.experiment.experiment_name
+        base_label = "Regular" if idx == 0 else config.experiment.experiment_name
+        label = (
+            f"{experiment_label_prefix}: {base_label}" if experiment_label_prefix else base_label
+        )
         summary_rows.append((label, results_path))
 
     experiment_root = Path(base_config.experiment.output_dir)

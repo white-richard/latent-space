@@ -253,6 +253,48 @@ class MarkdownTableLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(out, encoding="utf-8")
 
+    def append_columns(
+        self,
+        columns: Mapping[str, Sequence[Any]],
+        *,
+        row_labels: Sequence[Any] | None = None,
+        row_label_header: str = "name",
+    ) -> None:
+        """
+        Append data provided in columnar form as multiple rows.
+
+        Parameters
+        ----------
+        columns:
+            Mapping of column name to a sequence of values (all must be same length).
+        row_labels:
+            Optional sequence of row labels to add as an extra column.
+        row_label_header:
+            Header name to use when adding row_labels.
+        """
+        if not columns:
+            return
+
+        lengths = {len(v) for v in columns.values()}
+        if len(lengths) != 1:
+            raise ValueError("All columns must have the same length to append as rows.")
+        num_rows = lengths.pop()
+
+        if row_labels is not None and len(row_labels) != num_rows:
+            raise ValueError("row_labels length must match column lengths.")
+
+        rows: list[dict[str, Any]] = []
+        for idx in range(num_rows):
+            row: dict[str, Any] = {}
+            if row_labels is not None:
+                row[row_label_header] = row_labels[idx]
+            for key, seq in columns.items():
+                row[key] = seq[idx]
+            rows.append(row)
+
+        for row in rows:
+            self.append(row)
+
 
 def merge_row(
     *parts: Mapping[str, Any],
