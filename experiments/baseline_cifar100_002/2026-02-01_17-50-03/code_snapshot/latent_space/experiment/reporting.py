@@ -1,0 +1,359 @@
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+from latent_space.utils.markdown_results import (
+    MarkdownTableLogger,
+    flatten_dict,
+    render_markdown_table,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ReportConfig:
+    """Configuration for Obsidian-compatible experiment reports."""
+
+    project_name: str = "Project"
+    report_filename: str = "experiment.md"
+    hypothesis: str = ""
+    date_format: str = "%Y-%m-%d"
+    metrics_link: str | None = None
+    parameters: dict[str, Any] = field(default_factory=dict)
+    plots: list[str] = field(default_factory=list)
+    observations: list[str] = field(default_factory=list)
+    conclusion: str | None = None
+    status_tags: dict[str, str] = field(
+        default_factory=lambda: {
+            "training-complete": "#training-complete",
+            "failed": "#failed",
+            "evaluating": "#evaluating",
+        }
+    )
+
+
+_DEFAULT_REPORT_CONFIG: ReportConfig | None = None
+
+
+def set_default_report_config(config: ReportConfig | None) -> None:
+    """Set a module-level default report configuration."""
+    global _DEFAULT_REPORT_CONFIG
+    _DEFAULT_REPORT_CONFIG = config
+
+
+def get_default_report_config() -> ReportConfig:
+    """Return the module-level default report configuration."""
+    return _DEFAULT_REPORT_CONFIG or ReportConfig()
+
+
+def load_report_config(path: Path) -> ReportConfig:
+    """Load a report configuration from a JSON file."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    return ReportConfig(
+        project_name=data.get("project_name", ReportConfig().project_name),
+        report_filename=data.get("report_filename", ReportConfig().report_filename),
+        hypothesis=data.get("hypothesis", ReportConfig().hypothesis),
+        date_format=data.get("date_format", ReportConfig().date_format),
+        metrics_link=data.get("metrics_link"),
+        parameters=dict(data.get("parameters", {})),
+        plots=list(data.get("plots", [])),
+        observations=list(data.get("observations", [])),
+        conclusion=data.get("conclusion"),
+        status_tags=dict(data.get("status_tags", ReportConfig().status_tags)),
+    )
+
+
+def _get_nested_value(obj: Any, dotted_path: str) -> Any:
+    current = obj
+    for part in dotted_path.split("."):
+        if isinstance(current, Mapping):
+            if part not in current:
+                return None
+            current = current[part]
+        else:
+            if not hasattr(current, part):
+                return None
+            current = getattr(current, part)
+    return current
+
+
+def _first_present(obj: Any, paths: Sequence[str]) -> Any:
+    for path in paths:
+        value = _get_nested_value(obj, path)
+        if value is not None:
+            return value
+    return None
+
+
+def resolve_run_id(config: Any) -> str:
+    run_id = _first_present(
+        config,
+        [
+            "experiment.run_id",
+            "experiment.experiment_name",
+            "run_id",
+            "experiment_name",
+            "model.model_name",
+            "model.name",
+        ],
+    )
+    return str(run_id) if run_id is not None else "run"
+
+
+def resolve_project_name(config: Any, report_config: ReportConfig) -> str:
+    if (
+        report_config.project_name
+        and report_config.project_name != ReportConfig().project_name
+    ):
+        return report_config.project_name
+    project_name = _first_present(config, ["experiment.project_name", "project_name"])
+    return str(project_name) if project_name is not None else report_config.project_name
+
+
+def resolve_parameters(config: Any, report_config: ReportConfig) -> dict[str, Any]:
+    parameters = dict(report_config.parameters)
+    model_name = _first_present(
+        config, ["model.model_name", "model.name", "model.arch"]
+    )
+    learning_rate = _first_present(config, ["training.lr", "optimizer.lr", "lr"])
+    batch_size = _first_present(config, ["data.batch_size", "batch_size"])
+    hardware = _first_present(config, ["experiment.hardware", "hardware"])
+
+    parameters.setdefault("Model", model_name or "Unknown")
+    if learning_rate is not None:
+        parameters.setdefault("Learning Rate", learning_rate)
+    else:
+        parameters.setdefault("Learning Rate", "Unknown")
+    if batch_size is not None:
+        parameters.setdefault("Batch Size", batch_size)
+    else:
+        parameters.setdefault("Batch Size", "Unknown")
+    parameters.setdefault("Hardware", hardware or "Unknown")
+    return parameters
+
+
+def _extract_row_label_payload(
+    result: Any,
+) -> tuple[Sequence[Any], str, dict[str, Any]] | None:
+    if not isinstance(result, dict):
+        return None
+    row_labels = result.get("__row_labels")
+    if row_labels is None:
+        return None
+    row_label_header = result.get("__row_label_header", "name")
+    columns = {
+        k: v
+        for k, v in result.items()
+        if not (isinstance(k, str) and k.startswith("__row_label"))
+    }
+    return row_labels, row_label_header, columns
+
+
+def normalize_metrics(result: Any) -> Any:
+    if isinstance(result, Mapping):
+        if "__row_labels" in result:
+            return result
+        if "metrics" in result:
+            metrics_value = result.get("metrics")
+            return (
+                metrics_value
+                if isinstance(metrics_value, Mapping)
+                else {"metrics": metrics_value}
+            )
+        return result
+    return {"metrics": result}
+
+
+def metrics_to_markdown_table(metrics: Any, *, float_precision: int = 6) -> str:
+    if metrics is None:
+        return ""
+    row_payload = _extract_row_label_payload(metrics)
+    if row_payload is not None:
+        row_labels, row_label_header, columns = row_payload
+        rows: list[dict[str, Any]] = []
+        for idx in range(len(row_labels)):
+            row: dict[str, Any] = {row_label_header: row_labels[idx]}
+            for key, seq in columns.items():
+                row[key] = seq[idx]
+            rows.append(row)
+        headers = [row_label_header, *columns.keys()]
+        return render_markdown_table(
+            headers, rows, float_precision=float_precision
+        ).strip()
+
+    if isinstance(metrics, Mapping):
+        flattened = flatten_dict(metrics)
+        return render_markdown_table(
+            flattened.keys(), [flattened], float_precision=float_precision
+        ).strip()
+
+    return render_markdown_table(
+        ["metrics"], [{"metrics": metrics}], float_precision=float_precision
+    ).strip()
+
+
+def log_metrics_table(path: Path, metrics: Any, *, float_precision: int = 6) -> None:
+    logger = MarkdownTableLogger(path, float_precision=float_precision)
+    normalized = normalize_metrics(metrics)
+    row_payload = _extract_row_label_payload(normalized)
+    if row_payload:
+        row_labels, row_label_header, columns = row_payload
+        logger.append_columns(
+            columns, row_labels=row_labels, row_label_header=row_label_header
+        )
+    else:
+        logger.append(
+            normalized if isinstance(normalized, Mapping) else {"metrics": normalized}
+        )
+
+
+def resolve_plot_paths(result: Any, report_config: ReportConfig) -> list[str]:
+    plots = list(report_config.plots)
+    if isinstance(result, Mapping):
+        for key in ("plots", "plot_paths", "plot_files"):
+            value = result.get(key)
+            if isinstance(value, (list, tuple)):
+                plots.extend([str(v) for v in value])
+    return [p for p in plots if p]
+
+
+def resolve_status_tag(
+    result: Any, *, error: Exception | None, report_config: ReportConfig
+) -> str:
+    if error is not None:
+        return report_config.status_tags.get("failed", "#failed")
+    if isinstance(result, Mapping):
+        status = result.get("status") or result.get("state")
+        if isinstance(status, str):
+            status_key = status.strip().lower()
+            if "eval" in status_key:
+                return report_config.status_tags.get("evaluating", "#evaluating")
+    return report_config.status_tags.get("training-complete", "#training-complete")
+
+
+class ObsidianReportWriter:
+    """Generate Obsidian-compatible experiment reports."""
+
+    def __init__(self, config: ReportConfig | None = None) -> None:
+        self.config = config or get_default_report_config()
+
+    def build_report(
+        self,
+        *,
+        config: Any,
+        result: Any,
+        status_error: Exception | None = None,
+    ) -> str:
+        run_id = resolve_run_id(config)
+        project_name = resolve_project_name(config, self.config)
+        status_tag = resolve_status_tag(
+            result, error=status_error, report_config=self.config
+        )
+        date_str = datetime.now().strftime(self.config.date_format)
+        hypothesis = self.config.hypothesis or (
+            '*What change are we testing? (e.g., "Adding Gradient '
+            'Checkpointing will reduce VRAM usage by 60% without affecting convergence.")*'
+        )
+
+        parameters = resolve_parameters(config, self.config)
+        plots = resolve_plot_paths(result, self.config)
+        metrics_link = self.config.metrics_link
+        metrics_block = metrics_to_markdown_table(normalize_metrics(result))
+
+        lines: list[str] = [
+            f"# Experiment: {run_id}",
+            f"**Project:** [[{project_name}]]",
+            f"**Date:** {date_str}",
+            f"**Status:** {status_tag}",
+            "",
+            "## 🧪 Hypothesis",
+            hypothesis,
+            "",
+            "## 🛠 Parameters & Setup",
+        ]
+
+        lines.extend([f"- **{key}:** {value}" for key, value in parameters.items()])
+
+        lines.extend(["", "## 📊 Results & Plots"])
+
+        for plot in plots:
+            lines.append(f"![[{plot}]]")
+
+        if metrics_link:
+            lines.append(f"- **Final Metrics:** {metrics_link}")
+        else:
+            lines.append("- **Final Metrics:**")
+            lines.append(metrics_block or "_No metrics logged yet._")
+
+        lines.extend(["", "## 📝 Observations & Conclusions"])
+
+        observations = self.config.observations or [
+            "[Note on convergence speed]",
+            "[Unforeseen issues]",
+        ]
+        for obs in observations:
+            lines.append(f"- {obs}")
+
+        conclusion = self.config.conclusion or "[Was the hypothesis proven?]"
+        lines.append(f"- **Conclusion:** {conclusion}")
+        lines.append("")
+
+        return "\n".join(lines)
+
+    def write_report(
+        self,
+        output_dir: Path,
+        *,
+        config: Any,
+        result: Any,
+        status_error: Exception | None = None,
+    ) -> Path:
+        report_path = Path(output_dir) / self.config.report_filename
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            self.build_report(config=config, result=result, status_error=status_error),
+            encoding="utf-8",
+        )
+        return report_path
+
+
+def write_variant_summary(
+    experiment_root: Path, records: list[tuple[str, Path]]
+) -> None:
+    """Write a small summary file referencing per-variant result tables."""
+    if not records:
+        return
+
+    link_target = (
+        experiment_root.parent
+        if experiment_root.parent != experiment_root
+        else experiment_root
+    )
+    link_path = f"./{link_target.as_posix().lstrip('./')}"
+    timestamp = experiment_root.name
+    lines: list[str] = [
+        "# --- Experiment Path ---",
+        f"[Experiment path]({link_path})",
+        "",
+        "## Experiment summary",
+        f"**Datetime** {timestamp}",
+        "",
+    ]
+
+    for label, results_path in records:
+        title = "Regular" if label.lower() == "regular" else f"Variant {label}"
+        if results_path.exists():
+            table = results_path.read_text(encoding="utf-8").strip()
+        else:
+            table = "_No results logged yet._"
+        lines.extend([f"### {title}", table, ""])
+
+    summary_path = Path(experiment_root) / "experiment_summary.md"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text("\n".join(lines), encoding="utf-8")
