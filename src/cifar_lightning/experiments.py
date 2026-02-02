@@ -35,7 +35,7 @@ def experiment_baseline_cifar100():
             use_cifar100=True,
         ),
         model=ModelConfig(
-            model_name="vit_small",
+            model_name="vit_base",
         ),
         training=TrainingConfig(
             epochs=320,
@@ -51,7 +51,7 @@ def experiment_baseline_cifar100():
         experiment=ExperimentConfig(
             experiment_name=experiment_name,
             seed=42,
-            debug_mode=True,
+            debug_mode=False,
             output_dir=output_dir,
         ),
     )

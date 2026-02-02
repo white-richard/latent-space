@@ -7,7 +7,7 @@ import torch.nn as nn
 from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 
-from latent_space.models.vision_transformer.vision_transformer import vit_small, vit_tiny
+from latent_space.models.vision_transformer.vision_transformer import vit_small, vit_tiny, vit_base
 
 from .config import Config
 
@@ -27,6 +27,12 @@ class VisionTransformerModule(pl.LightningModule):
             )
         elif self.config.model.model_name == "vit_small":
             self.model = vit_small(
+                patch_size=self.config.model.patch_size,
+                num_classes=self.config.model.num_classes,
+                use_mhc=self.config.model.use_mhc,
+            )
+        elif self.config.model.model_name == "vit_base":
+            self.model = vit_base(
                 patch_size=self.config.model.patch_size,
                 num_classes=self.config.model.num_classes,
                 use_mhc=self.config.model.use_mhc,
