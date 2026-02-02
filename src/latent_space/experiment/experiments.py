@@ -32,6 +32,7 @@ from latent_space.experiment.experiment_runner import (
     make_variant_builder,
     run_experiment_with_variants,
 )
+from latent_space.experiment.reporting import ReportConfig
 
 
 @dataclass
@@ -47,7 +48,20 @@ class ModelConfig:
     # Add other model-related configurations as needed
 
 
-# ... other dataclasses
+@dataclass
+class TrainingConfig:
+    lr: float = 3e-4
+    epochs: int = 10
+    # Add optimizer/scheduler settings as needed
+
+
+@dataclass
+class ExperimentConfig:
+    experiment_name: str
+    output_dir: str
+    seed: int = 42
+    project_name: str = "Example Project"
+    hardware: str = "Unknown"
 
 
 @dataclass
@@ -56,6 +70,21 @@ class Config:
 
     data: DataConfig
     model: ModelConfig
+    training: TrainingConfig
+    experiment: ExperimentConfig
+
+
+def _example_runner(config: Config) -> dict[str, float]:
+    """Replace with your real training/eval function."""
+    _ = config
+    return {
+        "status": "training-complete",
+        "metrics": {
+            "final/acc": 0.82,
+            "final/loss": 1.23,
+        },
+        "plots": ["plot_loss_curve.png", "plot_accuracy.png"],
+    }
 
 
 def experiment_example_task():
@@ -70,7 +99,6 @@ def experiment_example_task():
     # Derive a clean experiment name from this function's name
     experiment_name = experiment_example_task.__name__.removeprefix("experiment_")
     output_dir = create_experiment_dir(experiment_name, base_dir=BASE_DIR)
-    _ = output_dir  # Use output_dir as needed in your runner
 
     # TODO: Replace the placeholders below with your real configuration
     base_config = Config(
@@ -80,6 +108,16 @@ def experiment_example_task():
         ),
         model=ModelConfig(
             model_name="your_model",
+        ),
+        training=TrainingConfig(
+            lr=3e-4,
+            epochs=20,
+        ),
+        experiment=ExperimentConfig(
+            experiment_name=experiment_name,
+            output_dir=str(output_dir),
+            project_name="Example Project",
+            hardware="RTX 4090",
         ),
     )
 
@@ -98,15 +136,19 @@ def experiment_example_task():
             ),
         ]
 
-    # Temporaty run function to replace
-    runner = None
+    report_config = ReportConfig(
+        project_name=base_config.experiment.project_name,
+        hypothesis="Adding gradient checkpointing reduces VRAM without hurting accuracy.",
+        parameters={"Hardware": base_config.experiment.hardware},
+    )
 
     return run_experiment_with_variants(
-        runner,
+        _example_runner,
         base_config=base_config,
         variant_builders=variant_builders,
         experiment_label_prefix="Example Task",
         code_snapshot_dirs=DEFAULT_CODE_SNAPSHOT_DIRS,
+        report_config=report_config,
     )
 
 

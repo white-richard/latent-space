@@ -408,7 +408,7 @@ def build_variant_section(
     lines = [
         "---",
         "type: experiment_variant",
-        f"project: \"[[{project_name}]]\"",
+        f'project: "[[{project_name}]]"',
         f"experiment: {experiment_name}",
         f"variant: {summary.variant_slug}",
         f"date: {date_str}",
@@ -515,7 +515,9 @@ def write_experiment_report(
             project_name=project_name,
             experiment_name=title,
         )
-        variant_path.write_text("\n".join(variant_lines).strip() + "\n", encoding="utf-8")
+        variant_path.write_text(
+            "\n".join(variant_lines).strip() + "\n", encoding="utf-8"
+        )
         lines.append(f"- [[variants/{summary.variant_slug}]]")
 
     lines.extend(["", "## Observations & Conclusions"])

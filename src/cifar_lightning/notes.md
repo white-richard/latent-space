@@ -1,8 +1,66 @@
 # Expeirment Notes
 
+# --- Experiment Path ---
+
+[Experiemnt path](./experiments/baseline_cifar100_001)
+
+## Experiemnt summary
+
+**Datetime** 2026-01-29_13-51-22
+
+- Switched to cifar 100
+- Adjusted training to 320 epochs
+
+## Hypothesis:
+
+- Model would learn fine and mHC would begin to outperform regular
+
+## Difference between this and previous experiment:
+
+- cifar10 -> 100
+- epochs == 320
+
+## Results:
+
+### Regular
+
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 1.6823    | 0.6811   | 0.5945       | 0.0301794       |
+
+### Varient baseline_cifar100_mHC
+
+| test/loss | test/acc | test/knn_acc | test/silhouette |
+| --------- | -------- | ------------ | --------------- |
+| 1.6178    | 0.6825   | 0.5914       | 0.0299659       |
+
+## Observations / Interpretation
+
+- Surprisingly roles reverse: mHC better on acc and reg better on knn acc
+    - tbf its still marginal
+- Noticed that these are set to 1 for mHC and probably should be higher:
+
+```txt
 mhc_num_fracs: int = 1,
 need to adjust these, they are set to 1, what does that mean?
 mhc_num_streams
+```
+
+## Conclusion:
+
+- Need to reevaluate it's training setup since performance is far from good
+- Need to check the hyperparams for mHC
+
+## Next steps:
+
+- See above
+- umap and pacmap are hardly interpretable at this scale of classes
+
+## Run status
+
+- ✅ Valid
+
+# -------------------------
 
 # --- Experiment Path ---
 
@@ -207,25 +265,17 @@ I think primarily the implementation of mHC is the reason for the lower performa
 
 ### Basic Details TODO auto fill in
 
-- Datetime
-- Dataset: CIFAR-10
-- Model: <arch name>
-- Optimizer: <type + base LR>
-- Regular = baseline residual connections
-- mHC = <one-sentence description>
-- WHD = <one-sentence description>
-
 ## Hypothesis:
 
 ## Difference between this and previous experiment:
 
 ## Results:
 
-## Observations / Interpretation
-
 ### Regular
 
 ### mHC
+
+### Observations / Interpretation
 
 ## Conclusion:
 

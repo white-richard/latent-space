@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pathlib
 import sys
 from typing import TYPE_CHECKING
 
@@ -8,14 +9,19 @@ if TYPE_CHECKING:
 
 from latent_space.experiment.experiment_runner import (
     BASE_DIR,
-    DEFAULT_CODE_SNAPSHOT_DIRS,
     create_experiment_dir,
     make_variant_builder,
     run_experiment_with_variants,
 )
+from latent_space.experiment.reporting import ReportConfig
 
 from .config import Config, DataConfig, ExperimentConfig, ModelConfig, TrainingConfig
 from .train import train
+
+DEFAULT_CODE_SNAPSHOT_DIRS = [
+    pathlib.Path(__file__).parent,
+    pathlib.Path(__file__).parent.parent / "latent_space",
+]
 
 
 def experiment_baseline_cifar100():
@@ -45,7 +51,7 @@ def experiment_baseline_cifar100():
         experiment=ExperimentConfig(
             experiment_name=experiment_name,
             seed=42,
-            debug_mode=False,
+            debug_mode=True,
             output_dir=output_dir,
         ),
     )
@@ -69,6 +75,11 @@ def experiment_baseline_cifar100():
         variant_builders=variant_builders,
         experiment_label_prefix="Baseline CIFAR100",
         code_snapshot_dirs=DEFAULT_CODE_SNAPSHOT_DIRS,
+        report_config=ReportConfig(
+            project_name="CIFAR Lightning",
+            hypothesis="mHC improves representation quality without slowing convergence.",
+            parameters={"Hardware": "RTX 3090"},
+        ),
     )
 
 
@@ -111,6 +122,11 @@ def experiment_baseline_cifar10():
         variant_builders=variant_builders,
         experiment_label_prefix="Baseline CIFAR10",
         code_snapshot_dirs=DEFAULT_CODE_SNAPSHOT_DIRS,
+        report_config=ReportConfig(
+            project_name="CIFAR Lightning",
+            hypothesis="Baseline ViT-Tiny achieves stable convergence on CIFAR-10.",
+            parameters={"Hardware": "RTX 3090"},
+        ),
     )
 
 

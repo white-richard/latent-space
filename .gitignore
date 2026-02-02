@@ -1,8 +1,11 @@
 temp/
 model_weights/
 data/
-experiments/
 uv.lock
+checkpoints/
+*.ckpt 
+*.pt 
+*.pth
 
 build/
 dist/

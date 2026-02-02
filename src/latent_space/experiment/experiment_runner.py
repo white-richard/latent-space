@@ -1,111 +1,116 @@
 """
-Experiment runner with predefined dataclass configurations.
+Experiment runner utilities for ML experimentation pipelines.
 
-See `./experiements.py` for how to use this module to define and run experiments.
+This module provides generic helpers for:
+- Creating experiment directories
+- Running experiment variants
+- Aggregating multiple seeds
+- Logging metrics and generating reports
 """
 
 import copy
 import datetime
 import importlib
+import logging
+import os
 import re
 import shutil
-from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass, is_dataclass
+from collections.abc import Callable, Iterable
+from dataclasses import is_dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from latent_space.utils.markdown_results import (
-    MarkdownTableLogger,
-    merge_row,
+from .reporting import (
+    ReportConfig,
+    VariantSummary,
+    get_default_report_config,
+    load_report_config,
+    resolve_project_name,
+    set_default_report_config,
+    write_config_report,
+    write_experiment_report,
 )
-
 from .utils import get_git_commit
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path("./experiments")
 CODE_SNAPSHOT_DIRNAME = "code_snapshot"
-GIT_COMMIT_FILENAME = "git_commit.txt"
 
-# Replace and pass from experiments.py
-DEFAULT_CODE_SNAPSHOT_DIRS = [
-    Path(__file__).resolve().parent,
-    Path(__file__).resolve().parent / "../data_utils",
-    Path(__file__).resolve().parent / "../models",
-    Path(__file__).resolve().parent / "../utils",
-    Path(__file__).resolve().parent / "../schedulers",
-]
+# Override from project-specific experiments if needed.
+DEFAULT_CODE_SNAPSHOT_DIRS = [Path(__file__).resolve().parent]
 
 
-def archive_experiment_state(output_dir: Path, *, code_dirs: Iterable[Path] | None = None) -> None:
+def archive_experiment_state(
+    output_dir: Path, *, code_dirs: Iterable[Path] | None = None
+) -> str:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_root = output_dir / CODE_SNAPSHOT_DIRNAME
     snapshot_root.mkdir(parents=True, exist_ok=True)
 
-    dirs_to_save = [Path(p).resolve() for p in (code_dirs or DEFAULT_CODE_SNAPSHOT_DIRS)]
+    dirs_to_save = [
+        Path(p).resolve() for p in (code_dirs or DEFAULT_CODE_SNAPSHOT_DIRS)
+    ]
 
     for src_dir in dirs_to_save:
         if not src_dir.exists():
+            logger.debug("Snapshot source missing: %s", src_dir)
             continue
         dest_dir = snapshot_root / src_dir.name
-        shutil.copytree(
-            src_dir,
-            dest_dir,
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
-        )
+        try:
+            shutil.copytree(
+                src_dir,
+                dest_dir,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+            )
+        except (OSError, shutil.Error) as exc:
+            logger.warning("Failed to snapshot %s: %s", src_dir, exc)
 
-    primary_src_dir = dirs_to_save[0] if dirs_to_save else Path(__file__).resolve().parent
+    primary_src_dir = (
+        dirs_to_save[0] if dirs_to_save else Path(__file__).resolve().parent
+    )
     git_commit = get_git_commit(primary_src_dir)
-    (output_dir / GIT_COMMIT_FILENAME).write_text(f"{git_commit}\n", encoding="utf-8")
+    return git_commit
 
 
 def prepare_experiment_artifacts(
-    config: dataclass, *, code_dirs: Iterable[Path] | None = None
-) -> None:
-    archive_experiment_state(Path(config.experiment.output_dir), code_dirs=code_dirs)
+    config: Any, *, code_dirs: Iterable[Path] | None = None
+) -> str:
+    return archive_experiment_state(_resolve_output_dir(config), code_dirs=code_dirs)
 
 
-def render_summary_section(title: str, results_md_path: Path) -> list[str]:
-    if results_md_path.exists():
-        table = results_md_path.read_text(encoding="utf-8").strip()
+def _safe_getattr(obj: Any, name: str) -> Any:
+    return getattr(obj, name) if hasattr(obj, name) else None
+
+
+def _resolve_output_dir(config: Any) -> Path:
+    if isinstance(config, dict):
+        output_dir = config.get("output_dir")
+        experiment = (
+            config.get("experiment", {})
+            if isinstance(config.get("experiment"), dict)
+            else None
+        )
+        if output_dir is None and experiment is not None:
+            output_dir = experiment.get("output_dir")
     else:
-        table = "_No results logged yet._"
-    return [f"### {title}", table]
+        experiment = _safe_getattr(config, "experiment")
+        output_dir = _safe_getattr(config, "output_dir")
+        if output_dir is None and experiment is not None:
+            output_dir = _safe_getattr(experiment, "output_dir")
+
+    if output_dir is None:
+        raise ValueError("Experiment config must define an output directory")
+    return Path(output_dir)
 
 
-def write_experiment_summary(experiment_root: Path, records: list[tuple[str, Path]]) -> None:
-    if not records:
-        return
-
-    link_target = (
-        experiment_root.parent if experiment_root.parent != experiment_root else experiment_root
-    )
-    link_path = f"./{link_target.as_posix().lstrip('./')}"
-    timestamp = experiment_root.name
-    lines: list[str] = [
-        "# --- Experiment Path ---",
-        f"[Experiemnt path]({link_path})",
-        "",
-        "## Experiemnt summary",
-        f"**Datetime** {timestamp}",
-        "",
-    ]
-
-    base_label, base_results_path = records[0]
-    base_section_title = "Regular" if base_label.lower() == "regular" else f"Varient {base_label}"
-    lines.extend(render_summary_section(base_section_title, base_results_path))
-
-    for label, results_path in records[1:]:
-        lines.append("")
-        lines.extend(render_summary_section(f"Varient {label}", results_path))
-
-    lines.append("")
-
-    summary_path = Path(experiment_root) / "experiment_summary.md"
-    summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text("\n".join(lines), encoding="utf-8")
+def _slugify(value: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower())
+    return cleaned.strip("_") or "variant"
 
 
 def create_experiment_dir(
@@ -130,24 +135,10 @@ def create_experiment_dir(
     next_index = max(existing_indices, default=0) + 1
     experiment_name_inc = f"{experiment_name}_{next_index:03d}"
 
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    output_dir = base_dir / experiment_name_inc / timestamp
+    output_dir = base_dir / experiment_name_inc
 
     output_dir.mkdir(parents=True, exist_ok=False)
     return output_dir
-
-
-def _extract_row_label_payload(result: Any) -> tuple[Sequence[Any], str, dict[str, Any]] | None:
-    if not isinstance(result, dict):
-        return None
-    row_labels = result.get("__row_labels")
-    if row_labels is None:
-        return None
-    row_label_header = result.get("__row_label_header", "name")
-    columns = {
-        k: v for k, v in result.items() if not (isinstance(k, str) and k.startswith("__row_label"))
-    }
-    return row_labels, row_label_header, columns
 
 
 def run_experiment_with_variants(
@@ -157,6 +148,7 @@ def run_experiment_with_variants(
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
     code_snapshot_dirs: Iterable[Path] | None = None,
     experiment_label_prefix: str | None = None,
+    report_config: ReportConfig | None = None,
 ) -> list[Any]:
     """
     Generic helper to:
@@ -168,40 +160,68 @@ def run_experiment_with_variants(
     Returns the list of raw results (one per config).
     """
     results: list[Any] = []
-    summary_rows: list[tuple[str, Path]] = []
+    summary_rows: list[VariantSummary] = []
+    active_report_config = report_config or get_default_report_config()
+    summary_title = _safe_getattr(
+        _safe_getattr(base_config, "experiment"), "experiment_name"
+    )
+    summary_title = summary_title or "experiment"
+    summary_project = resolve_project_name(base_config, active_report_config)
+
+    experiment_root = _resolve_output_dir(base_config)
+
+    git_sha = prepare_experiment_artifacts(base_config, code_dirs=code_snapshot_dirs)
 
     for idx, config in enumerate(expand_with_variants(base_config, variant_builders)):
-        prepare_experiment_artifacts(config, code_dirs=code_snapshot_dirs)
-        results_path = Path(config.experiment.output_dir) / "results.md"
-        logger = MarkdownTableLogger(results_path)
+        output_dir = _resolve_output_dir(config)
 
-        print(f"\nExperiment ({config.experiment.experiment_name})")
-        result = run_fn(config)
+        experiment = _safe_getattr(config, "experiment")
+        experiment_name = _safe_getattr(experiment, "experiment_name") or "experiment"
+        logger.info("Running experiment: %s", experiment_name)
+        result: Any
+        error: Exception | None = None
+        try:
+            result = run_fn(config)
+        except Exception as exc:
+            error = exc
+            result = {"status": "failed", "error": str(exc)}
+            logger.exception("Experiment failed: %s", exc)
         results.append(result)
 
-        row_label_payload = _extract_row_label_payload(result)
-        if row_label_payload:
-            row_labels, row_label_header, columns = row_label_payload
-            logger.append_columns(
-                columns,
-                row_labels=row_labels,
-                row_label_header=row_label_header,
-            )
-        else:
-            row = merge_row(
-                {"metrics": result} if not isinstance(result, dict) else result,
-            )
-            logger.append(row)
-
-        base_label = "Regular" if idx == 0 else config.experiment.experiment_name
-        label = (
-            f"{experiment_label_prefix}: {base_label}" if experiment_label_prefix else base_label
+        config_path = write_config_report(
+            output_dir,
+            config,
+            filename=active_report_config.config_filename,
         )
-        summary_rows.append((label, results_path))
+        experiment_name = _safe_getattr(experiment, "experiment_name") or "variant"
+        base_label = "Regular" if idx == 0 else experiment_name
+        label = (
+            f"{experiment_label_prefix}: {base_label}"
+            if experiment_label_prefix
+            else base_label
+        )
+        summary_rows.append(
+            VariantSummary(
+                label=label,
+                config_path=config_path,
+                results_path=output_dir / "results.md",
+                output_dir=output_dir,
+                variant_slug=_slugify(base_label),
+                result=result,
+                error=error,
+            )
+        )
 
     # Use the top-level experiment directory (the timestamped directory for base_config)
-    experiment_root = Path(base_config.experiment.output_dir)
-    write_experiment_summary(experiment_root, summary_rows)
+    write_experiment_report(
+        experiment_root,
+        title=summary_title,
+        project_name=summary_project,
+        report_config=active_report_config,
+        variants=summary_rows,
+        base_config=base_config,
+        git_sha=git_sha,
+    )
     return results
 
 
@@ -214,6 +234,7 @@ def aggregate_seeds_run_experiment_with_variants(
     variant_builders: Iterable[Callable[[Any], Any]] | None = None,
     code_snapshot_dirs: Iterable[Path] | None = None,
     experiment_label_prefix: str | None = None,
+    report_config: ReportConfig | None = None,
 ):
     """
     Run an ensemble of experiments by varying the random seed and logging only aggregated results.
@@ -236,6 +257,9 @@ def aggregate_seeds_run_experiment_with_variants(
         create additional configurations per seed.
     """
 
+    def _is_number(value: Any) -> bool:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+
     def _add_metrics(accum: Any, value: Any) -> Any:
         if isinstance(value, dict):
             accum = {} if accum is None else accum
@@ -252,8 +276,10 @@ def aggregate_seeds_run_experiment_with_variants(
                 raise ValueError("Metric list lengths differ across seeds.")
             return [_add_metrics(a, b) for a, b in zip(accum, value, strict=False)]
         if value is None:
-            return 0.0 if accum is None else accum
-        return (0.0 if accum is None else float(accum)) + float(value)
+            return accum
+        if _is_number(value):
+            return (0.0 if accum is None else float(accum)) + float(value)
+        return accum if accum is not None else value
 
     def _average_metrics(total: Any, divisor: int) -> Any:
         if isinstance(total, dict):
@@ -266,55 +292,83 @@ def aggregate_seeds_run_experiment_with_variants(
             return averaged
         if isinstance(total, list):
             return [_average_metrics(v, divisor) for v in total]
-        return float(total) / divisor
+        if total is None:
+            return None
+        if _is_number(total):
+            return float(total) / divisor
+        return total
 
     aggregated_results: dict[str, Any] = {}
-    summary_rows: list[tuple[str, Path]] = []
+    summary_rows: list[VariantSummary] = []
+    active_report_config = report_config or get_default_report_config()
+    summary_title = _safe_getattr(
+        _safe_getattr(base_config, "experiment"), "experiment_name"
+    )
+    summary_title = summary_title or "experiment"
+    summary_project = resolve_project_name(base_config, active_report_config)
+
+    experiment_root = _resolve_output_dir(base_config)
 
     rng = np.random.default_rng(seed_generator_seed)
     seeds = rng.integers(low=1, high=10000, size=num_seeds)
 
     expanded_configs = expand_with_variants(base_config, variant_builders)
 
+    git_sha = prepare_experiment_artifacts(base_config, code_dirs=code_snapshot_dirs)
+
     for idx, config in enumerate(expanded_configs):
-        prepare_experiment_artifacts(config, code_dirs=code_snapshot_dirs)
         totals: Any = None
 
         for seed in seeds:
             seeded_config = copy.deepcopy(config)
-            if hasattr(seeded_config, "experiment") and hasattr(seeded_config.experiment, "seed"):
+            if hasattr(seeded_config, "experiment") and hasattr(
+                seeded_config.experiment, "seed"
+            ):
                 seeded_config.experiment.seed = int(seed)
             result = run_fn(seeded_config)
-            metrics_dict = {"metrics": result} if not isinstance(result, dict) else result
+            metrics_dict = (
+                {"metrics": result} if not isinstance(result, dict) else result
+            )
             totals = _add_metrics(totals, metrics_dict)
 
         averaged = _average_metrics(totals, len(seeds))
-        aggregated_results[config.experiment.experiment_name] = averaged
+        experiment = _safe_getattr(config, "experiment")
+        experiment_name = _safe_getattr(experiment, "experiment_name") or "variant"
+        aggregated_results[experiment_name] = averaged
 
-        results_path = Path(config.experiment.output_dir) / "results.md"
-        logger = MarkdownTableLogger(results_path)
-        row_label_payload = _extract_row_label_payload(averaged)
-        if row_label_payload:
-            row_labels, row_label_header, columns = row_label_payload
-            logger.append_columns(
-                columns,
-                row_labels=row_labels,
-                row_label_header=row_label_header,
-            )
-        else:
-            row = merge_row(
-                {"metrics": averaged} if not isinstance(averaged, dict) else averaged,
-            )
-            logger.append(row)
-
-        base_label = "Regular" if idx == 0 else config.experiment.experiment_name
-        label = (
-            f"{experiment_label_prefix}: {base_label}" if experiment_label_prefix else base_label
+        output_dir = _resolve_output_dir(config)
+        config_path = write_config_report(
+            output_dir,
+            config,
+            filename=active_report_config.config_filename,
         )
-        summary_rows.append((label, results_path))
+        base_label = "Regular" if idx == 0 else experiment_name
+        label = (
+            f"{experiment_label_prefix}: {base_label}"
+            if experiment_label_prefix
+            else base_label
+        )
+        summary_rows.append(
+            VariantSummary(
+                label=label,
+                config_path=config_path,
+                results_path=output_dir / "results.md",
+                output_dir=output_dir,
+                variant_slug=_slugify(base_label),
+                result=averaged,
+                error=None,
+            )
+        )
 
-    experiment_root = Path(base_config.experiment.output_dir)
-    write_experiment_summary(experiment_root, summary_rows)
+    write_experiment_report(
+        experiment_root,
+        title=summary_title,
+        project_name=summary_project,
+        report_config=active_report_config,
+        variants=summary_rows,
+        base_config=base_config,
+        git_sha=git_sha,
+    )
     return aggregated_results
 
 
@@ -325,14 +379,15 @@ def _load_experiments_module(experiments_module: Any | None = None):
     if experiments_module is not None:
         return experiments_module
 
-    try:
-        return importlib.import_module("src.cifar_lightning.experiments")
-    except ModuleNotFoundError as e:
-        msg = (
-            "No experiments module provided to experiment_runner.main() and "
-            "default import 'src.cifar_lightning.experiments' failed."
-        )
-        raise RuntimeError(msg) from e
+    module_path = os.environ.get("EXPERIMENTS_MODULE")
+    if module_path:
+        return importlib.import_module(module_path)
+
+    msg = (
+        "No experiments module provided. Set EXPERIMENTS_MODULE or pass "
+        "--experiments-module to experiment_runner.main()."
+    )
+    raise RuntimeError(msg)
 
 
 def _discover_experiments(experiments_module: Any) -> dict[str, Callable[..., Any]]:
@@ -357,14 +412,10 @@ def _discover_experiments(experiments_module: Any) -> dict[str, Callable[..., An
     # We expose 'ensemble' as a top-level experiment name.
     registry["ensemble"] = aggregate_seeds_run_experiment_with_variants
 
-    # Optional: keep a short alias for a common baseline, if present.
-    if "baseline_cifar10" in registry:
-        registry["baseline"] = registry["baseline_cifar10"]
-
     return registry
 
 
-def apply_dotted_overrides(config: dataclass, overrides: dict[str, Any] | None) -> dataclass:
+def apply_dotted_overrides(config: Any, overrides: dict[str, Any] | None) -> Any:
     """Deep copy config and apply dotted-path overrides (e.g., 'training.lr')."""
     updated = copy.deepcopy(config)
     if not overrides:
@@ -376,20 +427,28 @@ def apply_dotted_overrides(config: dataclass, overrides: dict[str, Any] | None) 
         for attr in parts[:-1]:
             if isinstance(target, dict):
                 if attr not in target:
-                    raise ValueError(f"Cannot apply override '{dotted_key}': missing '{attr}'")
+                    raise ValueError(
+                        f"Cannot apply override '{dotted_key}': missing '{attr}'"
+                    )
                 target = target[attr]
             else:
                 if not hasattr(target, attr):
-                    raise ValueError(f"Cannot apply override '{dotted_key}': missing '{attr}'")
+                    raise ValueError(
+                        f"Cannot apply override '{dotted_key}': missing '{attr}'"
+                    )
                 target = getattr(target, attr)
         leaf = parts[-1]
         if isinstance(target, dict):
             if leaf not in target:
-                raise ValueError(f"Cannot apply override '{dotted_key}': missing '{leaf}'")
+                raise ValueError(
+                    f"Cannot apply override '{dotted_key}': missing '{leaf}'"
+                )
             target[leaf] = value
         else:
             if not hasattr(target, leaf):
-                raise ValueError(f"Cannot apply override '{dotted_key}': missing '{leaf}'")
+                raise ValueError(
+                    f"Cannot apply override '{dotted_key}': missing '{leaf}'"
+                )
             setattr(target, leaf, value)
 
     return updated
@@ -413,14 +472,20 @@ def make_variant_builder(
     def _builder(base: Any) -> Any:
         variant = apply_dotted_overrides(base, overrides)
 
-        if name_suffix and hasattr(variant, "model") and hasattr(variant.model, "model_name"):
+        if (
+            name_suffix
+            and hasattr(variant, "model")
+            and hasattr(variant.model, "model_name")
+        ):
             variant.model.model_name = f"{variant.model.model_name}{name_suffix}"
         if (
             output_subdir
             and hasattr(variant, "experiment")
             and hasattr(variant.experiment, "output_dir")
         ):
-            variant.experiment.output_dir = Path(variant.experiment.output_dir) / output_subdir
+            variant.experiment.output_dir = (
+                Path(variant.experiment.output_dir) / output_subdir
+            )
         if (
             experiment_suffix
             and hasattr(variant, "experiment")
@@ -475,9 +540,6 @@ def list_experiments(experiments: dict[str, Callable[..., Any]]):
 def main(experiments_module: Any | None = None):
     import argparse
 
-    experiments_module = _load_experiments_module(experiments_module)
-    experiments = _discover_experiments(experiments_module)
-
     parser = argparse.ArgumentParser(
         description="Run predefined experiments",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -486,12 +548,45 @@ def main(experiments_module: Any | None = None):
         "experiment",
         type=str,
         nargs="?",
-        choices=list(experiments.keys()) + ["all", "list"],
         default="list",
         help="Experiment to run (use 'list' to see all options, 'all' to run everything)",
     )
+    parser.add_argument(
+        "--experiments-module",
+        type=str,
+        default=None,
+        help="Python module path containing experiment_* functions (e.g. 'my_pkg.experiments').",
+    )
+    parser.add_argument(
+        "--project-name",
+        type=str,
+        default=None,
+        help="Project name used in experiment reports.",
+    )
+    parser.add_argument(
+        "--report-config",
+        type=str,
+        default=None,
+        help="Path to a JSON report configuration file.",
+    )
 
     args = parser.parse_args()
+
+    if args.report_config:
+        set_default_report_config(load_report_config(Path(args.report_config)))
+    if args.project_name:
+        updated = get_default_report_config()
+        updated.project_name = args.project_name
+        set_default_report_config(updated)
+
+    if args.experiments_module:
+        experiments_module = importlib.import_module(args.experiments_module)
+
+    experiments_module = _load_experiments_module(experiments_module)
+    experiments = _discover_experiments(experiments_module)
+
+    if args.experiment not in list(experiments.keys()) + ["all", "list"]:
+        raise ValueError(f"Unknown experiment: {args.experiment}")
 
     if args.experiment == "list":
         list_experiments(experiments)
