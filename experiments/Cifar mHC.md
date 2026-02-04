@@ -1,12 +1,13 @@
 
 
-![[latent-space/experiments/baseline_cifar100_002/experiment.md]]
+I ran ViT base but the learning curves were unstable. Not going to worry about using it and just jump to the next thing. [[experiments/baseline_cifar100_002/experiment|experiment]]
+Think I should try circle loss and see if I can turn this into a metric learning problem
 
 
 ---
 
-***Going to start linking to exprs and talking about them high level in this doc***
 
+<span style="color: red;">Going to start linking to exprs and talking about them high level in this doc</span>
 # Experiment: baseline_cifar100
 
 ## Hypothesis

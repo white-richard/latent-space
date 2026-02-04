@@ -10,7 +10,7 @@ tags: []
 # Experiment: baseline_cifar100
 
 ## Hypothesis
-mHC improves representation quality without slowing convergence.
+Vit base was training unstable: wanted to check if it was a bug. This is the same experiment as 001.
 
 ## Parameters & Setup
 - See variant config files below.
@@ -21,6 +21,6 @@ mHC improves representation quality without slowing convergence.
 - [[variants/baseline_cifar100_mhc]]
 
 ## Observations & Conclusions
-- convergence::
-- issues::
-- conclusion::
+- convergence:: Same as 001
+- issues:: None new
+- conclusion:: ViT base is unstable. Just going to stick with Vit small
