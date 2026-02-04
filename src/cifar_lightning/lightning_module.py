@@ -4,9 +4,11 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 
+from latent_space.loss.circle_loss import CircleLoss, convert_label_to_similarity
 from latent_space.models.vision_transformer.vision_transformer import vit_small, vit_tiny, vit_base
 
 from .config import Config
@@ -42,8 +44,8 @@ class VisionTransformerModule(pl.LightningModule):
 
         self.model.init_weights()
 
-        # Loss function
-        self.criterion = nn.CrossEntropyLoss()
+        # Loss functions
+        self.loss_items = self._build_loss_items()
 
         # Metrics tracking
         self.train_acc = []
@@ -65,11 +67,48 @@ class VisionTransformerModule(pl.LightningModule):
         """Forward pass through the model."""
         return self.model(x)
 
+    def _build_loss_items(self):
+        items = []
+        for item in self.config.loss.losses:
+            if item.name == "cross_entropy":
+                items.append(
+                    {
+                        "name": "cross_entropy",
+                        "weight": float(item.weight),
+                        "fn": nn.CrossEntropyLoss(),
+                    }
+                )
+            elif item.name == "circle":
+                items.append(
+                    {
+                        "name": "circle",
+                        "weight": float(item.weight),
+                        "fn": CircleLoss(m=item.circle_m, gamma=item.circle_gamma),
+                    }
+                )
+            else:
+                raise ValueError(f"Unknown loss name: {item.name}")
+        return items
+
+    def compute_losses(self, embeddings, logits, labels):
+        losses = {}
+        for item in self.loss_items:
+            name = item["name"]
+            if name == "cross_entropy":
+                losses[name] = item["fn"](logits, labels)
+            elif name == "circle":
+                normed = F.normalize(embeddings, dim=1)
+                sp, sn = convert_label_to_similarity(normed, labels)
+                losses[name] = item["fn"](sp, sn)
+        return losses
+
     def training_step(self, batch, batch_idx):
         """Training step."""
         X, y = batch
-        output = self(X)
-        loss = self.criterion(output, y)
+        embeddings = self.forward_cls(X)
+        output = self.forward_head(embeddings)
+        loss_dict = self.compute_losses(embeddings, output, y)
+        loss = sum(self._loss_weight(name) * val for name, val in loss_dict.items())
 
         # Calculate accuracy
         pred = output.argmax(dim=1)
@@ -79,14 +118,18 @@ class VisionTransformerModule(pl.LightningModule):
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         self.log("train/acc", acc, on_step=True, on_epoch=True, prog_bar=True)
         self.log("train/lr", self.trainer.optimizers[0].param_groups[0]["lr"], on_step=True)
+        for name, val in loss_dict.items():
+            self.log(f"train/loss_{name}", val, on_step=True, on_epoch=True, prog_bar=False)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step."""
         X, y = batch
-        output = self(X)
-        loss = self.criterion(output, y)
+        embeddings = self.forward_cls(X)
+        output = self.forward_head(embeddings)
+        loss_dict = self.compute_losses(embeddings, output, y)
+        loss = sum(self._loss_weight(name) * val for name, val in loss_dict.items())
 
         # Calculate accuracy
         pred = output.argmax(dim=1)
@@ -95,6 +138,8 @@ class VisionTransformerModule(pl.LightningModule):
         # Log metrics
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
+        for name, val in loss_dict.items():
+            self.log(f"val/loss_{name}", val, on_step=False, on_epoch=True, prog_bar=False)
 
         return {"val_loss": loss, "val_acc": acc}
 
@@ -103,7 +148,8 @@ class VisionTransformerModule(pl.LightningModule):
         X, y = batch
         embeddings = self.forward_cls(X)
         logits = self.forward_head(embeddings)
-        loss = self.criterion(logits, y)
+        loss_dict = self.compute_losses(embeddings, logits, y)
+        loss = sum(self._loss_weight(name) * val for name, val in loss_dict.items())
 
         # Calculate accuracy
         pred = logits.argmax(dim=1)
@@ -112,6 +158,8 @@ class VisionTransformerModule(pl.LightningModule):
         # Log metrics
         self.log("test/loss", loss, on_step=False, on_epoch=True)
         self.log("test/acc", acc, on_step=False, on_epoch=True)
+        for name, val in loss_dict.items():
+            self.log(f"test/loss_{name}", val, on_step=False, on_epoch=True)
 
         return {"test_loss": loss, "test_acc": acc}
 
@@ -192,6 +240,12 @@ class VisionTransformerModule(pl.LightningModule):
 
     def on_before_optimizer_step(self, optimizer):
         pass
+
+    def _loss_weight(self, name: str) -> float:
+        for item in self.loss_items:
+            if item["name"] == name:
+                return float(item["weight"])
+        return 1.0
 
     def get_embeddings(self, dataloader):
         """Extract embeddings from the model (without classification head)."""

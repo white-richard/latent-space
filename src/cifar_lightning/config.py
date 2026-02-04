@@ -59,12 +59,27 @@ class TrainingConfig:
 
 
 @dataclass
+class LossItemConfig:
+    name: Literal["cross_entropy", "circle"] = "cross_entropy"
+    weight: float = 1.0
+    # Circle loss parameters
+    circle_m: float = 0.25
+    circle_gamma: float = 256.0
+
+
+@dataclass
+class LossConfig:
+    losses: list[LossItemConfig] = field(default_factory=lambda: [LossItemConfig()])
+
+
+@dataclass
 class Config:
     """Main configuration class combining all configs."""
 
     data: DataConfig = field(default_factory=DataConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)
+    loss: LossConfig = field(default_factory=LossConfig)
     experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
 
     def __post_init__(self):
