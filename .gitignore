@@ -6,6 +6,7 @@ checkpoints/
 *.ckpt 
 *.pt 
 *.pth
+events.out.tfevents.*
 
 build/
 dist/
