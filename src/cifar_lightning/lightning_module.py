@@ -77,6 +77,7 @@ class VisionTransformerModule(pl.LightningModule):
                         "name": "cross_entropy",
                         "weight": float(item.weight),
                         "start_epoch": int(item.start_epoch),
+                        "warmup_epochs": int(item.warmup_epochs),
                         "fn": nn.CrossEntropyLoss(),
                     }
                 )
@@ -86,6 +87,7 @@ class VisionTransformerModule(pl.LightningModule):
                         "name": "circle",
                         "weight": float(item.weight),
                         "start_epoch": int(item.start_epoch),
+                        "warmup_epochs": int(item.warmup_epochs),
                         "fn": CircleLoss(m=item.circle_m, gamma=item.circle_gamma),
                     }
                 )
@@ -95,6 +97,7 @@ class VisionTransformerModule(pl.LightningModule):
                         "name": "koleo",
                         "weight": float(item.weight),
                         "start_epoch": int(item.start_epoch),
+                        "warmup_epochs": int(item.warmup_epochs),
                         "fn": KoLeoLoss(),
                     }
                 )
@@ -292,7 +295,14 @@ class VisionTransformerModule(pl.LightningModule):
     def _loss_weight(self, name: str) -> float:
         for item in self.loss_items:
             if item["name"] == name:
-                return float(item["weight"])
+                base_weight = float(item["weight"])
+                start_epoch = int(item.get("start_epoch", 0))
+                warmup_epochs = int(item.get("warmup_epochs", 0))
+                if warmup_epochs <= 0:
+                    return base_weight
+                progress = (self.current_epoch - start_epoch) / float(warmup_epochs)
+                factor = max(0.0, min(1.0, progress))
+                return base_weight * factor
         return 1.0
 
     def get_embeddings(self, dataloader):

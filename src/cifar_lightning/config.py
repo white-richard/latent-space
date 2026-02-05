@@ -64,6 +64,8 @@ class LossItemConfig:
     weight: float = 1.0
     # Start applying this loss at the given epoch (0-based)
     start_epoch: int = 0
+    # Linearly ramp loss weight from 0 to full weight over this many epochs
+    warmup_epochs: int = 0
     # Circle loss parameters
     circle_m: float = 0.25
     circle_gamma: float = 256.0
