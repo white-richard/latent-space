@@ -68,6 +68,7 @@ def experiment_metric_cifar100():
                 LossItemConfig(
                     name="circle",
                     weight=0.025,
+                    start_epoch=50,
                 ),
                 LossItemConfig(
                     name="cross_entropy",

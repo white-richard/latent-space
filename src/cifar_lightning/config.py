@@ -62,6 +62,8 @@ class TrainingConfig:
 class LossItemConfig:
     name: Literal["cross_entropy", "circle"] = "cross_entropy"
     weight: float = 1.0
+    # Start applying this loss at the given epoch (0-based)
+    start_epoch: int = 0
     # Circle loss parameters
     circle_m: float = 0.25
     circle_gamma: float = 256.0

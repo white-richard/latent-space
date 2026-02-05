@@ -76,6 +76,7 @@ class VisionTransformerModule(pl.LightningModule):
                     {
                         "name": "cross_entropy",
                         "weight": float(item.weight),
+                        "start_epoch": int(item.start_epoch),
                         "fn": nn.CrossEntropyLoss(),
                     }
                 )
@@ -84,6 +85,7 @@ class VisionTransformerModule(pl.LightningModule):
                     {
                         "name": "circle",
                         "weight": float(item.weight),
+                        "start_epoch": int(item.start_epoch),
                         "fn": CircleLoss(m=item.circle_m, gamma=item.circle_gamma),
                     }
                 )
@@ -92,6 +94,7 @@ class VisionTransformerModule(pl.LightningModule):
                     {
                         "name": "koleo",
                         "weight": float(item.weight),
+                        "start_epoch": int(item.start_epoch),
                         "fn": KoLeoLoss(),
                     }
                 )
@@ -103,6 +106,8 @@ class VisionTransformerModule(pl.LightningModule):
         losses = {}
         for item in self.loss_items:
             name = item["name"]
+            if not self._is_loss_active(name):
+                continue
             if name == "cross_entropy":
                 losses[name] = item["fn"](logits, labels)
             elif name == "circle":
@@ -276,6 +281,13 @@ class VisionTransformerModule(pl.LightningModule):
                 on_epoch=False,
                 prog_bar=False,
             )
+
+    def _is_loss_active(self, name: str) -> bool:
+        for item in self.loss_items:
+            if item["name"] == name:
+                start_epoch = int(item.get("start_epoch", 0))
+                return self.current_epoch >= start_epoch
+        return True
 
     def _loss_weight(self, name: str) -> float:
         for item in self.loss_items:
