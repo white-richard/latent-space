@@ -15,13 +15,22 @@ from latent_space.experiment.experiment_runner import (
 )
 from latent_space.experiment.reporting import ReportConfig
 
-from .config import Config, DataConfig, ExperimentConfig, ModelConfig, TrainingConfig, LossConfig, LossItemConfig
+from .config import (
+    Config,
+    DataConfig,
+    ExperimentConfig,
+    LossConfig,
+    LossItemConfig,
+    ModelConfig,
+    TrainingConfig,
+)
 from .train import train
 
 DEFAULT_CODE_SNAPSHOT_DIRS = [
     pathlib.Path(__file__).parent,
     pathlib.Path(__file__).parent.parent / "latent_space",
 ]
+
 
 def experiment_metric_cifar100():
     experiment_name = experiment_metric_cifar100.__name__.removeprefix("experiment_")
@@ -58,7 +67,7 @@ def experiment_metric_cifar100():
             losses=[
                 LossItemConfig(
                     name="circle",
-                    weight=1.0,
+                    weight=0.025,
                 ),
                 LossItemConfig(
                     name="cross_entropy",

@@ -9,7 +9,8 @@ from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_sco
 from sklearn.neighbors import NearestNeighbors
 
 from latent_space.loss.circle_loss import CircleLoss, convert_label_to_similarity
-from latent_space.models.vision_transformer.vision_transformer import vit_small, vit_tiny, vit_base
+from latent_space.loss.koleo_loss import KoLeoLoss
+from latent_space.models.vision_transformer.vision_transformer import vit_base, vit_small, vit_tiny
 
 from .config import Config
 
@@ -86,6 +87,14 @@ class VisionTransformerModule(pl.LightningModule):
                         "fn": CircleLoss(m=item.circle_m, gamma=item.circle_gamma),
                     }
                 )
+            elif item.name == "koleo":
+                items.append(
+                    {
+                        "name": "koleo",
+                        "weight": float(item.weight),
+                        "fn": KoLeoLoss(),
+                    }
+                )
             else:
                 raise ValueError(f"Unknown loss name: {item.name}")
         return items
@@ -100,6 +109,8 @@ class VisionTransformerModule(pl.LightningModule):
                 normed = F.normalize(embeddings, dim=1)
                 sp, sn = convert_label_to_similarity(normed, labels)
                 losses[name] = item["fn"](sp, sn)
+            elif name == "koleo":
+                losses[name] = item["fn"](embeddings)
         return losses
 
     def training_step(self, batch, batch_idx):
@@ -120,6 +131,8 @@ class VisionTransformerModule(pl.LightningModule):
         self.log("train/lr", self.trainer.optimizers[0].param_groups[0]["lr"], on_step=True)
         for name, val in loss_dict.items():
             self.log(f"train/loss_{name}", val, on_step=True, on_epoch=True, prog_bar=False)
+
+        self._log_grad_norms_per_loss(loss_dict)
 
         return loss
 
@@ -240,6 +253,29 @@ class VisionTransformerModule(pl.LightningModule):
 
     def on_before_optimizer_step(self, optimizer):
         pass
+
+    def _log_grad_norms_per_loss(self, loss_dict):
+        params = [p for p in self.parameters() if p.requires_grad]
+        if not params:
+            return
+
+        for name, loss in loss_dict.items():
+            if loss is None:
+                continue
+
+            grads = torch.autograd.grad(loss, params, retain_graph=True, allow_unused=True)
+            grad_norms = [g.norm(2) for g in grads if g is not None]
+            if not grad_norms:
+                continue
+
+            total_norm = torch.norm(torch.stack(grad_norms), p=2)
+            self.log(
+                f"train/grad_norm_{name}",
+                total_norm,
+                on_step=True,
+                on_epoch=False,
+                prog_bar=False,
+            )
 
     def _loss_weight(self, name: str) -> float:
         for item in self.loss_items:
