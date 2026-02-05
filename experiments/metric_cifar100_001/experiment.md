@@ -12,7 +12,7 @@ tags: []
 ## Hypothesis
 Class clustering will become more apparent due to circle loss
 
-## Parameters & Setup
+rich.white285@yahoo.comParameters & Setup
 - See variant config files below.
 
 ## Variants
@@ -21,6 +21,6 @@ Class clustering will become more apparent due to circle loss
 - [[variants/metric_cifar100_mhc]]
 
 ## Observations & Conclusions
-- convergence::
-- issues::
-- conclusion::
+- convergence::No
+- issues::Performance at random guessing 
+- conclusion:: Too much loss signal?
