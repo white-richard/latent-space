@@ -7,7 +7,7 @@ name = "latent_space"
 version = "0.1.0"
 description = "Lightly organized ML code I've written or gathered."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [{ name = "Rich W." }]
 classifiers = [
@@ -17,7 +17,8 @@ classifiers = [
 "Programming Language :: Python :: 3.12",
 "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = []
+dependencies = [
+]
 
 # [project.urls]
 # "Homepage" = "https://github.com/facebookresearch/sam3"
@@ -31,4 +32,4 @@ dependencies = []
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["latent_space"] # Include gitmodules?
-# exclude = ["build*", "scripts*", "examples*"]
+# exclude = ["build*", "scripts*", "examples*", "tests"]
