@@ -1,3 +1,10 @@
+"""
+Implementation of TinyLoRA from:
+Morris, J. X., Mireshghallah, N., Ibrahim, M., & Mahloujifar, S. (2026).
+"Learning to Reason in 13 Parameters."
+arXiv preprint arXiv:2602.04118
+https://arxiv.org/abs/2602.04118
+"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
