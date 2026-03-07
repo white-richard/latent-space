@@ -1,34 +1,26 @@
-from collections import defaultdict
+from dataclasses import dataclass
 
 import torch
 import torchvision
-from torch.utils.data import Subset
 
+@dataclass
+class DataLoaders:
+    train: torch.utils.data.DataLoader
+    val: torch.utils.data.DataLoader
 
 def get_imagenet_loaders(
     data_dir: str,
+    *
+    train_transforms: list,
+    eval_transforms: list,
     batch_size: int = 32,
     num_workers: int = 4,
-    train_transforms: list = None,
-    limit_data: bool = False,
-) -> dict[str, torch.utils.data.DataLoader]:
+) -> DataLoaders:
     train_imagenet_data = torchvision.datasets.ImageNet(
         data_dir,
         split="train",
-        transform=torchvision.transforms.Compose(
-            [
-                torchvision.transforms.RandomResizedCrop(224),
-                torchvision.transforms.RandomHorizontalFlip(),
-                train_transforms if train_transforms is not None else None,
-                torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        ),
+        transform=train_transforms
     )
-    if limit_data:
-        train_imagenet_data = limit_dataset_with_stratified_sampling(train_imagenet_data)
 
     train_loader = torch.utils.data.DataLoader(
         train_imagenet_data,
@@ -41,20 +33,8 @@ def get_imagenet_loaders(
     val_imagenet_data = torchvision.datasets.ImageNet(
         data_dir,
         split="val",
-        transform=torchvision.transforms.Compose(
-            [
-                torchvision.transforms.Resize(256),
-                torchvision.transforms.CenterCrop(224),
-                torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        ),
+        transform=eval_transforms
     )
-
-    if limit_data:
-        val_imagenet_data = limit_dataset_with_stratified_sampling(val_imagenet_data)
 
     val_loader = torch.utils.data.DataLoader(
         val_imagenet_data,
@@ -64,30 +44,14 @@ def get_imagenet_loaders(
         pin_memory=True,
     )
 
-    loaders = {"train": train_loader, "val": val_loader}
+    loaders = DataLoaders(train=train_loader, val=val_loader)
+
     return loaders
 
-
-def limit_dataset_with_stratified_sampling(
-    dataset: torch.utils.data.Dataset,
-) -> torch.utils.data.Dataset:
-    targets = torch.tensor(dataset.targets)
-    fraction = 0.1
-    class_to_indices = defaultdict(list)
-    for idx, label in enumerate(targets):
-        class_to_indices[label.item()].append(idx)
-    subset_indices = []
-    for label, idxs in class_to_indices.items():
-        idxs = torch.tensor(idxs)
-        n = max(1, int(len(idxs) * fraction))
-        perm = torch.randperm(len(idxs))[:n]
-        subset_indices.extend(idxs[perm].tolist())
-    return Subset(dataset, subset_indices)
-
-
 if __name__ == "__main__":
-    data_dir = "/home/richw/.code/datasets/imagenet"
-    loaders = get_imagenet_loaders(data_dir, batch_size=16, num_workers=4, limit_val=True)
+    data_dir = "~/.code/datasets/imagenet"
+    train_transform, val_transform = torch.nn.Identity(), torch.nn.Identity()
+    loaders = get_imagenet_loaders(data_dir, train_transforms=train_transform, eval_transforms=val_transform, batch_size=16, num_workers=0)
     val_loader = loaders["val"]
 
     for images, labels in val_loader:
