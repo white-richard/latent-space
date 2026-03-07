@@ -21,4 +21,4 @@ lightning
 rich
 tensorboard
 # For DINOv3
--r repos/dinov3/requirements.txt
+# -r repos/dinov3/requirements.txt
