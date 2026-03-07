@@ -23,13 +23,13 @@ dependencies = [
 # [project.urls]
 # "Homepage" = "https://github.com/facebookresearch/sam3"
 
-# Optional “feature” installs: pip install .[excel,plot]
-# [project.optional-dependencies]
-# excel = ["pandas>=2.2"]
-# plot  = ["matplotlib>=3.8"]
-# dev  = ["pytest>=7.4", "ruff>=0.6.8", "mypy>=1.11", "types-PyYAML"]
+# Optional "feature" installs: pip install .[excel,plot]
+[project.optional-dependencies]
+excel = ["openpyxl>=3.1"]
+plot  = ["matplotlib>=3.8"]
+dev   = ["pytest>=7.4", "ruff>=0.6.8", "mypy>=1.11", "types-PyYAML"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["latent_space"] # Include gitmodules?
+include = ["latent_space"]
 # exclude = ["build*", "scripts*", "examples*", "tests"]
