@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from tqdm import tqdm, trange
 
 batch_size = 64
 learning_rate = 3e-4
@@ -30,16 +31,16 @@ model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.05)
 
-for epoch in range(epochs):
+for epoch in trange(epochs):
     model.train()
     running_loss = 0.0
 
-    for images, labels in train_loader:
+    for images, labels in tqdm(train_loader):
         images, labels = images.to(device), labels.to(device)
 
         # Torch amp autocast for bfloat16
         # All you do is wrap your forward pass model() and loss criterion
-        with torch.autocast(device_type=device, dtype=torch.bfloat16):
+        with torch.autocast(device_type=device.type, dtype=torch.bfloat16):
             outputs = model(images)
             loss = criterion(outputs, labels)
 
@@ -50,4 +51,3 @@ for epoch in range(epochs):
         running_loss += loss.item()
 
     print(f"Epoch [{epoch + 1}/{epochs}] - Loss: {running_loss / len(train_loader):.4f}")
-
