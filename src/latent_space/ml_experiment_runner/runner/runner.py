@@ -50,12 +50,16 @@ class ExperimentRunner:
                 )
 
         if len(results) == 0:
-            raise AllSeedsFailedError(f"All seeds failed for experiment '{experiment.name}'.")
+            msg = f"All seeds failed for experiment '{experiment.name}'."
+            raise AllSeedsFailedError(msg)
 
         if len(results) < self.runner_config.min_successful_seeds:
-            raise InsufficientSeedsError(
+            msg = (
                 f"Experiment '{experiment.name}' succeeded on {len(results)} seed(s), "
                 f"but min_successful_seeds={self.runner_config.min_successful_seeds}."
+            )
+            raise InsufficientSeedsError(
+                msg,
             )
 
         return MetricsAggregator.aggregate(results)

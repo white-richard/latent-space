@@ -38,6 +38,7 @@ class DataclassAdapter:
     ----------
     seed_field:
         Dotted path to the seed attribute, e.g. ``"experiment.seed"``.
+
     """
 
     def __init__(self, seed_field: str = "experiment.seed") -> None:

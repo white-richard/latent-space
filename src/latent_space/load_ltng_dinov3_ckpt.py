@@ -19,7 +19,8 @@ def load_dinov3_checkpoint(
 
     # Validate checkpoint path
     if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        msg = f"Checkpoint not found: {checkpoint_path}"
+        raise FileNotFoundError(msg)
 
     # Build model if not provided
     if model is None:
@@ -33,14 +34,15 @@ def load_dinov3_checkpoint(
 
     if isinstance(ckpt, dict) and "state_dict" in ckpt:
         state_dict = ckpt["state_dict"]
-    elif isinstance(ckpt, dict) and all(isinstance(k, str) for k in ckpt.keys()):
+    elif isinstance(ckpt, dict) and all(isinstance(k, str) for k in ckpt):
         state_dict = ckpt
     else:
+        msg = "Unsupported checkpoint format: expected dict with 'state_dict' or raw state_dict"
         raise ValueError(
-            "Unsupported checkpoint format: expected dict with 'state_dict' or raw state_dict"
+            msg,
         )
 
-    if any(k.startswith("ssl_model.") for k in state_dict.keys()):
+    if any(k.startswith("ssl_model.") for k in state_dict):
         state_dict = {k.replace("ssl_model.", ""): v for k, v in state_dict.items()}
 
     # Load into model. Use assign=True so that meta parameters
@@ -53,11 +55,13 @@ def load_dinov3_checkpoint(
         print("Missing keys when loading checkpoint:")
         for key in missing:
             print(f"  {key}")
-        raise ValueError("Some model parameters are missing after loading checkpoint.")
+        msg = "Some model parameters are missing after loading checkpoint."
+        raise ValueError(msg)
     if unexpected:
         print("Unexpected keys when loading checkpoint:")
         for key in unexpected:
             print(f"  {key}")
-        raise ValueError("Some unexpected parameters were found after loading checkpoint.")
+        msg = "Some unexpected parameters were found after loading checkpoint."
+        raise ValueError(msg)
 
     return model

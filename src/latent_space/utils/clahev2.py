@@ -1,26 +1,29 @@
+from pathlib import Path
 from typing import Any
 
-import torch
-import numpy as np
 import cv2
-from pathlib import Path
+import numpy as np
+import torch
 
 
 class CLAHEv2(torch.nn.Module):
-    """ Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) to single-channel images. 
+    """Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) to single-channel images.
     Supports uint8 and uint16 input images, with output dtype choice.
-    
-    Can be used as a transform in torch transform v2 pipelines."""
+
+    Can be used as a transform in torch transform v2 pipelines.
+    """
+
     def __init__(
         self,
         clip_limit: float = 4.0,
         tile_grid_size: tuple[int, int] = (8, 8),
         output_dtype: torch.dtype = torch.uint8,
-    ):
+    ) -> None:
         super().__init__()
         allowed = {torch.uint8, torch.uint16}
         if output_dtype not in allowed:
-            raise ValueError(f"output_dtype must be one of {allowed}")
+            msg = f"output_dtype must be one of {allowed}"
+            raise ValueError(msg)
         self.output_dtype = output_dtype
         self._clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
@@ -29,11 +32,13 @@ class CLAHEv2(torch.nn.Module):
         add_channel_back = False
         if img.ndim == 3:
             if img.shape[0] != 1:
-                raise ValueError(f"Expected shape [1,H,W] but got {tuple(img.shape)}")
+                msg = f"Expected shape [1,H,W] but got {tuple(img.shape)}"
+                raise ValueError(msg)
             img = img[0]
             add_channel_back = True
         elif img.ndim != 2:
-            raise ValueError(f"Expected 2D [H,W] or 3D [1,H,W] but got {img.ndim}D")
+            msg = f"Expected 2D [H,W] or 3D [1,H,W] but got {img.ndim}D"
+            raise ValueError(msg)
 
         # Torch -> NumPy (CPU)
         img_np = img.detach().cpu().numpy()
@@ -44,7 +49,8 @@ class CLAHEv2(torch.nn.Module):
         elif img_np.dtype == np.uint8:
             img8 = img_np
         else:
-            raise ValueError(f"Input tensor dtype must be uint8 or uint16 but got {img_np.dtype}")
+            msg = f"Input tensor dtype must be uint8 or uint16 but got {img_np.dtype}"
+            raise ValueError(msg)
 
         # Apply CLAHE (expects uint8 single-channel)
         img8_clahe = self._clahe.apply(img8)
@@ -69,20 +75,25 @@ class CLAHEv2(torch.nn.Module):
             if isinstance(x, torch.Tensor):
                 return self._apply_single(x)
             if isinstance(x, (list, tuple)):
-                return type(x)(self._apply_single(t) if isinstance(t, torch.Tensor) else t for t in x)
+                return type(x)(
+                    self._apply_single(t) if isinstance(t, torch.Tensor) else t for t in x
+                )
             return x
 
         # If (img, target, ...) style: only transform tensor-like items
         return tuple(self._apply_single(x) if isinstance(x, torch.Tensor) else x for x in inputs)
 
+
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 
+
 def imread_any(path: Path) -> np.ndarray | None:
-    """
-    Read image without changing bit depth.
+    """Read image without changing bit depth.
+
     Returns:
       - grayscale uint8/uint16 array [H,W]
-      - or None if unreadable
+      - or None if unreadable.
+
     """
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
     if img is None:
@@ -99,8 +110,10 @@ def imread_any(path: Path) -> np.ndarray | None:
     # Now img should be [H,W]
     return img
 
-def main():
+
+def main() -> None:
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("input_dir", type=str, help="Directory containing images")
     ap.add_argument("--recursive", action="store_true", help="Recurse into subdirectories")
@@ -110,7 +123,8 @@ def main():
 
     in_dir = Path(args.input_dir).expanduser().resolve()
     if not in_dir.is_dir():
-        raise SystemExit(f"Not a directory: {in_dir}")
+        msg = f"Not a directory: {in_dir}"
+        raise SystemExit(msg)
 
     out_dir = in_dir.parent / f"{in_dir.name}_clahe_uint8"
     out_dir.mkdir(parents=True, exist_ok=True)

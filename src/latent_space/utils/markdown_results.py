@@ -15,9 +15,8 @@ def flatten_dict(
     parent_key: str = "",
     sep: str = ".",
 ) -> dict[str, Any]:
-    """
-    Flatten nested dictionaries:
-      {"a": {"b": 1}, "c": 2} -> {"a.b": 1, "c": 2}
+    """Flatten nested dictionaries:
+    {"a": {"b": 1}, "c": 2} -> {"a.b": 1, "c": 2}.
     """
     out: dict[str, Any] = {}
     for k, v in obj.items():
@@ -30,11 +29,10 @@ def flatten_dict(
 
 
 def to_plain_dict(obj: Any) -> dict[str, Any]:
-    """
-    Convert common config objects to dict:
+    """Convert common config objects to dict:
     - dataclasses
     - objects with .dict() (pydantic-ish)
-    - already dict
+    - already dict.
     """
     if obj is None:
         return {}
@@ -47,7 +45,8 @@ def to_plain_dict(obj: Any) -> dict[str, Any]:
     # best-effort: use __dict__ if present
     if hasattr(obj, "__dict__"):
         return dict(vars(obj))
-    raise TypeError(f"Unsupported object type for to_plain_dict: {type(obj)!r}")
+    msg = f"Unsupported object type for to_plain_dict: {type(obj)!r}"
+    raise TypeError(msg)
 
 
 def _format_float(x: float, *, precision: int = 6) -> str:
@@ -60,16 +59,12 @@ def _format_float(x: float, *, precision: int = 6) -> str:
 
 
 def md_escape(text: str) -> str:
-    """
-    Escape pipes/newlines so markdown tables don't break.
-    """
+    """Escape pipes/newlines so markdown tables don't break."""
     return text.replace("|", "\\|").replace("\n", "\\n").replace("\r", "")
 
 
 def to_cell(value: Any, *, float_precision: int = 6, max_len: int | None = 300) -> str:
-    """
-    Convert a Python value to a single markdown-table-safe string cell.
-    """
+    """Convert a Python value to a single markdown-table-safe string cell."""
     if value is None:
         s = ""
     elif isinstance(value, bool):
@@ -102,11 +97,10 @@ def _normalize_headers(headers: Sequence[str]) -> list[str]:
 
 
 def parse_markdown_table(md: str) -> tuple[list[str], list[dict[str, str]]]:
-    """
-    Parse a simple markdown table of the form:
+    """Parse a simple markdown table of the form:
       | a | b |
       |---|---|
-      | 1 | 2 |
+      | 1 | 2 |.
 
     Returns (headers, rows), where each row maps header->cell (string).
     If no table found, returns ([], []).
@@ -142,7 +136,7 @@ def parse_markdown_table(md: str) -> tuple[list[str], list[dict[str, str]]]:
                     cells += [""] * (len(headers) - len(cells))
                 if len(cells) > len(headers):
                     cells = cells[: len(headers)]
-                rows.append({h: c for h, c in zip(headers, cells, strict=False)})
+                rows.append(dict(zip(headers, cells, strict=False)))
             return (headers, rows)
 
     return ([], [])
@@ -154,9 +148,7 @@ def render_markdown_table(
     *,
     float_precision: int = 6,
 ) -> str:
-    """
-    Render headers + rows into a markdown table string.
-    """
+    """Render headers + rows into a markdown table string."""
     headers = _normalize_headers(list(headers))
     if not headers:
         return ""
@@ -170,12 +162,11 @@ def render_markdown_table(
         line_cells = [to_cell(r.get(h, ""), float_precision=float_precision) for h in headers]
         body_lines.append("| " + " | ".join(line_cells) + " |")
 
-    return "\n".join([head, sep] + body_lines) + "\n"
+    return "\n".join([head, sep, *body_lines]) + "\n"
 
 
 class MarkdownTableLogger:
-    """
-    Append rows to a markdown table file, preserving existing rows/headers.
+    """Append rows to a markdown table file, preserving existing rows/headers.
 
     Behavior:
     - If file doesn't exist: creates it with provided headers
@@ -212,13 +203,10 @@ class MarkdownTableLogger:
         headers, rows = self._load()
 
         if not headers:
-            if self._headers is None:
-                headers = list(row.keys())
-            else:
-                headers = list(self._headers)
+            headers = list(row.keys()) if self._headers is None else list(self._headers)
 
         if self.auto_expand_columns:
-            for k in row.keys():
+            for k in row:
                 if k not in headers:
                     headers.append(k)
 
@@ -241,7 +229,7 @@ class MarkdownTableLogger:
                 headers = list(self._headers)
 
         if self.auto_expand_columns:
-            for k in row.keys():
+            for k in row:
                 if k not in headers:
                     headers.append(k)
 
@@ -260,8 +248,7 @@ class MarkdownTableLogger:
         row_labels: Sequence[Any] | None = None,
         row_label_header: str = "name",
     ) -> None:
-        """
-        Append data provided in columnar form as multiple rows.
+        """Append data provided in columnar form as multiple rows.
 
         Parameters
         ----------
@@ -271,17 +258,20 @@ class MarkdownTableLogger:
             Optional sequence of row labels to add as an extra column.
         row_label_header:
             Header name to use when adding row_labels.
+
         """
         if not columns:
             return
 
         lengths = {len(v) for v in columns.values()}
         if len(lengths) != 1:
-            raise ValueError("All columns must have the same length to append as rows.")
+            msg = "All columns must have the same length to append as rows."
+            raise ValueError(msg)
         num_rows = lengths.pop()
 
         if row_labels is not None and len(row_labels) != num_rows:
-            raise ValueError("row_labels length must match column lengths.")
+            msg = "row_labels length must match column lengths."
+            raise ValueError(msg)
 
         rows: list[dict[str, Any]] = []
         for idx in range(num_rows):
@@ -301,8 +291,7 @@ def merge_row(
     flatten: bool = True,
     sep: str = ".",
 ) -> dict[str, Any]:
-    """
-    Merge multiple dict-like parts into one row. Later parts override earlier parts.
+    """Merge multiple dict-like parts into one row. Later parts override earlier parts.
     Optionally flatten nested dicts for each part.
     """
     merged: dict[str, Any] = {}

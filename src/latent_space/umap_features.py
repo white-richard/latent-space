@@ -1,18 +1,20 @@
-import torch
-import torch.nn as nn
-import numpy as np
-import matplotlib.pyplot as plt
-from umap import UMAP
-from tqdm import tqdm
+from typing import TYPE_CHECKING
 
-from hypercore.manifolds import Lorentz
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from torch import nn
+from tqdm import tqdm
+from umap import UMAP
+
+if TYPE_CHECKING:
+    from hypercore.manifolds import Lorentz
+
 
 def extract_features(model, dataloader, device, is_hyperbolic=False):
     if hasattr(model, "heads"):
         model.heads = nn.Identity()
-    elif hasattr(model, "fc"):
-        model.fc = nn.Identity()
-    elif hasattr(model, "head"):
+    elif hasattr(model, "fc") or hasattr(model, "head"):
         model.fc = nn.Identity()
     elif hasattr(model, "classifier"):
         model.classifier = nn.Identity()
@@ -21,7 +23,7 @@ def extract_features(model, dataloader, device, is_hyperbolic=False):
     model.eval()
 
     if is_hyperbolic:
-        manifold:Lorentz = model.manifold_out
+        manifold: Lorentz = model.manifold_out
     else:
         manifold = None
 
@@ -58,21 +60,24 @@ def plot_umap(
     is_hyperbolic=False,
     manifold=None,
     device=None,
-):
-    """
-    Applies UMAP to features and saves a 2D scatter plot.
-    """
+) -> None:
+    """Applies UMAP to features and saves a 2D scatter plot."""
     print(f"Fitting UMAP on {features.shape} matrix...")
-    device = device if device is not None else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = (
+        device
+        if device is not None
+        else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    )
 
     orig_dim = features.shape[1]  # keep for title
 
     is_poincare = False
 
     if is_poincare and is_hyperbolic:
-        raise NotImplementedError("Poincare UMAP not implemented yet.")
-    
-    elif is_hyperbolic:
+        msg = "Poincare UMAP not implemented yet."
+        raise NotImplementedError(msg)
+
+    if is_hyperbolic:
 
         def dist_func(A_np, B_np):
             A = torch.from_numpy(A_np).to(device)
@@ -80,18 +85,23 @@ def plot_umap(
             with torch.no_grad():
                 D = manifold.pairwise_distance(A, B, keepdim=False, distance="geodesic")
                 # if does not return N, M, raise
-                assert D.ndim == 2 and D.shape[0] == A.shape[0] and D.shape[1] == B.shape[0]
+                assert D.ndim == 2
+                assert D.shape[0] == A.shape[0]
+                assert D.shape[1] == B.shape[0]
 
             return D.detach().cpu().numpy()
 
         knn_indices, knn_dists = build_precomputed_knn(
-            features, k=n_neighbors, dist_func=dist_func
+            features,
+            k=n_neighbors,
+            dist_func=dist_func,
         )
         X = np.asarray(features)
         if X.ndim != 2:
-            raise ValueError(f"Expected features to be 2D (N,D). Got shape {X.shape}")
+            msg = f"Expected features to be 2D (N,D). Got shape {X.shape}"
+            raise ValueError(msg)
 
-        N, D = X.shape
+        N, _D = X.shape
 
         features = (knn_indices, knn_dists)
         reducer = UMAP(
@@ -100,8 +110,8 @@ def plot_umap(
             random_state=42,
             min_dist=min_dist,
             n_neighbors=n_neighbors,
-            # metric="precomputed", 
-            precomputed_knn=(knn_indices, knn_dists), 
+            # metric="precomputed",
+            precomputed_knn=(knn_indices, knn_dists),
         )
         X_dummy = np.zeros((N, 1), dtype=np.float32)
         proj_2d = reducer.fit_transform(X_dummy)
@@ -113,14 +123,12 @@ def plot_umap(
         )
         proj_2d = reducer.fit_transform(features)
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    _fig, ax = plt.subplots(figsize=(10, 8))
     scatter = ax.scatter(
         proj_2d[:, 0],
         proj_2d[:, 1],
         c=labels,
-        cmap=(
-            "tab10" if not is_hyperbolic else "Spectral"
-        ),  # Good colormap for categorical data
+        cmap=("tab10" if not is_hyperbolic else "Spectral"),  # Good colormap for categorical data
         s=5,
         alpha=0.7,
     )
@@ -129,7 +137,7 @@ def plot_umap(
 
     tag = "Hyp" if is_hyperbolic else "Euc"
     plt.title(
-        f"UMAP Projection of {tag} ViT Features\n(Input dim: {orig_dim}, Neighbors: {n_neighbors})"
+        f"UMAP Projection of {tag} ViT Features\n(Input dim: {orig_dim}, Neighbors: {n_neighbors})",
     )
     plt.xlabel("UMAP 1")
     plt.ylabel("UMAP 2")
@@ -139,18 +147,16 @@ def plot_umap(
     plt.close()
 
 
-import numpy as np
-
 def build_precomputed_knn(features, k, dist_func, block=2048, dtype=np.float32):
-    """
-    Build (knn_indices, knn_dists) for UMAP from a custom distance function, without storing NxN.
+    """Build (knn_indices, knn_dists) for UMAP from a custom distance function, without storing NxN.
 
     dist_func(A, B) must return a 2D array of distances with shape (A.shape[0], B.shape[0]).
     """
     X = np.asarray(features, dtype=dtype)
     N = X.shape[0]
     k = int(k)
-    assert k >= 1 and k <= N
+    assert k >= 1
+    assert k <= N
 
     knn_indices = np.empty((N, k), dtype=np.int64)
     knn_dists = np.empty((N, k), dtype=dtype)
@@ -173,7 +179,8 @@ def build_precomputed_knn(features, k, dist_func, block=2048, dtype=np.float32):
             # Merge candidates: concatenate current best with this chunk
             cand_d = np.concatenate([best_d, D], axis=1)  # (b, k+c)
             cand_j = np.concatenate(
-                [best_j, all_idx[j0:j1][None, :].repeat(i1 - i0, axis=0)], axis=1
+                [best_j, all_idx[j0:j1][None, :].repeat(i1 - i0, axis=0)],
+                axis=1,
             )
 
             # Take k smallest per row using argpartition, then sort those k

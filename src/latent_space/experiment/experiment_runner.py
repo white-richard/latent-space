@@ -1,5 +1,4 @@
-"""
-Experiment runner utilities for ML experimentation pipelines.
+"""Experiment runner utilities for ML experimentation pipelines.
 
 This module provides generic helpers for:
 - Creating experiment directories
@@ -9,7 +8,6 @@ This module provides generic helpers for:
 """
 
 import copy
-import datetime
 import importlib
 import logging
 import os
@@ -44,16 +42,16 @@ DEFAULT_CODE_SNAPSHOT_DIRS = [Path(__file__).resolve().parent]
 
 
 def archive_experiment_state(
-    output_dir: Path, *, code_dirs: Iterable[Path] | None = None
+    output_dir: Path,
+    *,
+    code_dirs: Iterable[Path] | None = None,
 ) -> str:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_root = output_dir / CODE_SNAPSHOT_DIRNAME
     snapshot_root.mkdir(parents=True, exist_ok=True)
 
-    dirs_to_save = [
-        Path(p).resolve() for p in (code_dirs or DEFAULT_CODE_SNAPSHOT_DIRS)
-    ]
+    dirs_to_save = [Path(p).resolve() for p in (code_dirs or DEFAULT_CODE_SNAPSHOT_DIRS)]
 
     for src_dir in dirs_to_save:
         if not src_dir.exists():
@@ -70,15 +68,14 @@ def archive_experiment_state(
         except (OSError, shutil.Error) as exc:
             logger.warning("Failed to snapshot %s: %s", src_dir, exc)
 
-    primary_src_dir = (
-        dirs_to_save[0] if dirs_to_save else Path(__file__).resolve().parent
-    )
-    git_commit = get_git_commit(primary_src_dir)
-    return git_commit
+    primary_src_dir = dirs_to_save[0] if dirs_to_save else Path(__file__).resolve().parent
+    return get_git_commit(primary_src_dir)
 
 
 def prepare_experiment_artifacts(
-    config: Any, *, code_dirs: Iterable[Path] | None = None
+    config: Any,
+    *,
+    code_dirs: Iterable[Path] | None = None,
 ) -> str:
     return archive_experiment_state(_resolve_output_dir(config), code_dirs=code_dirs)
 
@@ -91,9 +88,7 @@ def _resolve_output_dir(config: Any) -> Path:
     if isinstance(config, dict):
         output_dir = config.get("output_dir")
         experiment = (
-            config.get("experiment", {})
-            if isinstance(config.get("experiment"), dict)
-            else None
+            config.get("experiment", {}) if isinstance(config.get("experiment"), dict) else None
         )
         if output_dir is None and experiment is not None:
             output_dir = experiment.get("output_dir")
@@ -104,7 +99,8 @@ def _resolve_output_dir(config: Any) -> Path:
             output_dir = _safe_getattr(experiment, "output_dir")
 
     if output_dir is None:
-        raise ValueError("Experiment config must define an output directory")
+        msg = "Experiment config must define an output directory"
+        raise ValueError(msg)
     return Path(output_dir)
 
 
@@ -117,10 +113,11 @@ def create_experiment_dir(
     experiment_name: str,
     base_dir: Path = Path("./experiments"),
 ) -> Path:
-    """
-    Create a new experiment directory with auto-incremented name.
+    """Create a new experiment directory with auto-incremented name.
+
     Example:
-        ./experiments/experiment_name_001/2026-01-21_14-32-10
+        ./experiments/experiment_name_001/2026-01-21_14-32-10.
+
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     pattern = re.compile(rf"{re.escape(experiment_name)}_(\d+)$")
@@ -150,12 +147,11 @@ def run_experiment_with_variants(
     experiment_label_prefix: str | None = None,
     report_config: ReportConfig | None = None,
 ) -> list[Any]:
-    """
-    Generic helper to:
+    """Generic helper to:
       - expand a base config with variants
       - run each config
       - log markdown results
-      - write a per-experiment summary
+      - write a per-experiment summary.
 
     Returns the list of raw results (one per config).
     """
@@ -163,7 +159,8 @@ def run_experiment_with_variants(
     summary_rows: list[VariantSummary] = []
     active_report_config = report_config or get_default_report_config()
     summary_title = _safe_getattr(
-        _safe_getattr(base_config, "experiment"), "experiment_name"
+        _safe_getattr(base_config, "experiment"),
+        "experiment_name",
     )
     summary_title = summary_title or "experiment"
     summary_project = resolve_project_name(base_config, active_report_config)
@@ -196,9 +193,7 @@ def run_experiment_with_variants(
         experiment_name = _safe_getattr(experiment, "experiment_name") or "variant"
         base_label = "Regular" if idx == 0 else experiment_name
         label = (
-            f"{experiment_label_prefix}: {base_label}"
-            if experiment_label_prefix
-            else base_label
+            f"{experiment_label_prefix}: {base_label}" if experiment_label_prefix else base_label
         )
         summary_rows.append(
             VariantSummary(
@@ -209,7 +204,7 @@ def run_experiment_with_variants(
                 variant_slug=_slugify(base_label),
                 result=result,
                 error=error,
-            )
+            ),
         )
 
     # Use the top-level experiment directory (the timestamped directory for base_config)
@@ -236,8 +231,7 @@ def aggregate_seeds_run_experiment_with_variants(
     experiment_label_prefix: str | None = None,
     report_config: ReportConfig | None = None,
 ):
-    """
-    Run an ensemble of experiments by varying the random seed and logging only aggregated results.
+    """Run an ensemble of experiments by varying the random seed and logging only aggregated results.
 
     This takes a base `dataclass`, samples `num_seeds` random seeds and runs an
     experiment for each of them (and optionally their variants). Results are
@@ -255,6 +249,7 @@ def aggregate_seeds_run_experiment_with_variants(
     variant_builders:
         Optional iterable of variant builders (see `make_variant_builder`) to
         create additional configurations per seed.
+
     """
 
     def _is_number(value: Any) -> bool:
@@ -273,7 +268,8 @@ def aggregate_seeds_run_experiment_with_variants(
         if isinstance(value, list):
             accum = [None] * len(value) if accum is None else accum
             if len(accum) != len(value):
-                raise ValueError("Metric list lengths differ across seeds.")
+                msg = "Metric list lengths differ across seeds."
+                raise ValueError(msg)
             return [_add_metrics(a, b) for a, b in zip(accum, value, strict=False)]
         if value is None:
             return accum
@@ -302,7 +298,8 @@ def aggregate_seeds_run_experiment_with_variants(
     summary_rows: list[VariantSummary] = []
     active_report_config = report_config or get_default_report_config()
     summary_title = _safe_getattr(
-        _safe_getattr(base_config, "experiment"), "experiment_name"
+        _safe_getattr(base_config, "experiment"),
+        "experiment_name",
     )
     summary_title = summary_title or "experiment"
     summary_project = resolve_project_name(base_config, active_report_config)
@@ -322,13 +319,12 @@ def aggregate_seeds_run_experiment_with_variants(
         for seed in seeds:
             seeded_config = copy.deepcopy(config)
             if hasattr(seeded_config, "experiment") and hasattr(
-                seeded_config.experiment, "seed"
+                seeded_config.experiment,
+                "seed",
             ):
                 seeded_config.experiment.seed = int(seed)
             result = run_fn(seeded_config)
-            metrics_dict = (
-                {"metrics": result} if not isinstance(result, dict) else result
-            )
+            metrics_dict = {"metrics": result} if not isinstance(result, dict) else result
             totals = _add_metrics(totals, metrics_dict)
 
         averaged = _average_metrics(totals, len(seeds))
@@ -344,9 +340,7 @@ def aggregate_seeds_run_experiment_with_variants(
         )
         base_label = "Regular" if idx == 0 else experiment_name
         label = (
-            f"{experiment_label_prefix}: {base_label}"
-            if experiment_label_prefix
-            else base_label
+            f"{experiment_label_prefix}: {base_label}" if experiment_label_prefix else base_label
         )
         summary_rows.append(
             VariantSummary(
@@ -357,7 +351,7 @@ def aggregate_seeds_run_experiment_with_variants(
                 variant_slug=_slugify(base_label),
                 result=averaged,
                 error=None,
-            )
+            ),
         )
 
     write_experiment_report(
@@ -373,9 +367,7 @@ def aggregate_seeds_run_experiment_with_variants(
 
 
 def _load_experiments_module(experiments_module: Any | None = None):
-    """
-    Resolve the experiments module, falling back to the default import path.
-    """
+    """Resolve the experiments module, falling back to the default import path."""
     if experiments_module is not None:
         return experiments_module
 
@@ -391,8 +383,7 @@ def _load_experiments_module(experiments_module: Any | None = None):
 
 
 def _discover_experiments(experiments_module: Any) -> dict[str, Callable[..., Any]]:
-    """
-    Discover experiment functions from the project-specific experiments module.
+    """Discover experiment functions from the project-specific experiments module.
 
     Any callable whose name starts with 'experiment_' is registered under the
     name with that prefix stripped, e.g.:
@@ -427,27 +418,31 @@ def apply_dotted_overrides(config: Any, overrides: dict[str, Any] | None) -> Any
         for attr in parts[:-1]:
             if isinstance(target, dict):
                 if attr not in target:
+                    msg = f"Cannot apply override '{dotted_key}': missing '{attr}'"
                     raise ValueError(
-                        f"Cannot apply override '{dotted_key}': missing '{attr}'"
+                        msg,
                     )
                 target = target[attr]
             else:
                 if not hasattr(target, attr):
+                    msg = f"Cannot apply override '{dotted_key}': missing '{attr}'"
                     raise ValueError(
-                        f"Cannot apply override '{dotted_key}': missing '{attr}'"
+                        msg,
                     )
                 target = getattr(target, attr)
         leaf = parts[-1]
         if isinstance(target, dict):
             if leaf not in target:
+                msg = f"Cannot apply override '{dotted_key}': missing '{leaf}'"
                 raise ValueError(
-                    f"Cannot apply override '{dotted_key}': missing '{leaf}'"
+                    msg,
                 )
             target[leaf] = value
         else:
             if not hasattr(target, leaf):
+                msg = f"Cannot apply override '{dotted_key}': missing '{leaf}'"
                 raise ValueError(
-                    f"Cannot apply override '{dotted_key}': missing '{leaf}'"
+                    msg,
                 )
             setattr(target, leaf, value)
 
@@ -461,31 +456,24 @@ def make_variant_builder(
     experiment_suffix: str | None = None,
     overrides: dict[str, Any] | None = None,
 ) -> Callable[[Any], Any]:
-    """
-    Factory that returns a variant builder which:
-      - applies dotted overrides to any nested dataclass fields
-      - optionally appends a suffix to the model name
-      - optionally appends a subdirectory to the output_dir
-      - optionally appends a suffix to the experiment name
+    """Factory that returns a variant builder which:
+    - applies dotted overrides to any nested dataclass fields
+    - optionally appends a suffix to the model name
+    - optionally appends a subdirectory to the output_dir
+    - optionally appends a suffix to the experiment name.
     """
 
     def _builder(base: Any) -> Any:
         variant = apply_dotted_overrides(base, overrides)
 
-        if (
-            name_suffix
-            and hasattr(variant, "model")
-            and hasattr(variant.model, "model_name")
-        ):
+        if name_suffix and hasattr(variant, "model") and hasattr(variant.model, "model_name"):
             variant.model.model_name = f"{variant.model.model_name}{name_suffix}"
         if (
             output_subdir
             and hasattr(variant, "experiment")
             and hasattr(variant.experiment, "output_dir")
         ):
-            variant.experiment.output_dir = (
-                Path(variant.experiment.output_dir) / output_subdir
-            )
+            variant.experiment.output_dir = Path(variant.experiment.output_dir) / output_subdir
         if (
             experiment_suffix
             and hasattr(variant, "experiment")
@@ -515,15 +503,18 @@ def expand_with_variants(
         elif isinstance(built, Iterable) and not isinstance(built, (str, bytes)):
             configs.extend(built)
         else:
-            raise TypeError(
+            msg = (
                 "Variant builder must return a dataclass or iterable of dataclass,"
                 f" got {type(built)}"
+            )
+            raise TypeError(
+                msg,
             )
 
     return configs
 
 
-def list_experiments(experiments: dict[str, Callable[..., Any]]):
+def list_experiments(experiments: dict[str, Callable[..., Any]]) -> None:
     """Print all available experiments."""
     print("\n" + "=" * 80)
     print("Available Experiments".center(80))
@@ -537,7 +528,7 @@ def list_experiments(experiments: dict[str, Callable[..., Any]]):
     print("\n" + "=" * 80)
 
 
-def main(experiments_module: Any | None = None):
+def main(experiments_module: Any | None = None) -> None:
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -585,8 +576,9 @@ def main(experiments_module: Any | None = None):
     experiments_module = _load_experiments_module(experiments_module)
     experiments = _discover_experiments(experiments_module)
 
-    if args.experiment not in list(experiments.keys()) + ["all", "list"]:
-        raise ValueError(f"Unknown experiment: {args.experiment}")
+    if args.experiment not in [*list(experiments.keys()), "all", "list"]:
+        msg = f"Unknown experiment: {args.experiment}"
+        raise ValueError(msg)
 
     if args.experiment == "list":
         list_experiments(experiments)
@@ -619,13 +611,12 @@ def main(experiments_module: Any | None = None):
             print(f"{name:30} {status}")
         print("=" * 80)
 
+    # Run specific experiment
+    elif args.experiment in experiments:
+        experiments[args.experiment]()
     else:
-        # Run specific experiment
-        if args.experiment in experiments:
-            experiments[args.experiment]()
-        else:
-            print(f"Unknown experiment: {args.experiment}")
-            list_experiments(experiments)
+        print(f"Unknown experiment: {args.experiment}")
+        list_experiments(experiments)
 
 
 if __name__ == "__main__":

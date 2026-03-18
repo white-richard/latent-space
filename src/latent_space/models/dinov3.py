@@ -10,20 +10,22 @@ import torch
 from torch import nn
 from torchvision.transforms import v2
 
-__all__ = ["get_dinov3", "_make_dino_transform"]
+__all__ = ["_make_dino_transform", "get_dinov3"]
 
 
 def _make_dino_transform(
-    *, resize_size: int = 384, transforms_list: list[torchvision.transforms.v2.Transform] = None
+    *,
+    resize_size: int = 384,
+    transforms_list: list[torchvision.transforms.v2.Transform] | None = None,
 ) -> torchvision.transforms.v2.Transform:
-    """
-    Build the DINOv3 preprocessing pipeline.
+    """Build the DINOv3 preprocessing pipeline.
 
     Args:
         resize_size: Target square resize dimension.
 
     Returns:
         A torchvision v2 transform that converts input images to normalized float tensors.
+
     """
     if transforms_list is None:
         transforms_list = []
@@ -38,14 +40,14 @@ def _make_dino_transform(
 
 
 def _infer_model_name(weights_path: pathlib.Path) -> str:
-    """
-    Infer the DINOv3 model name from the official weight filename.
+    """Infer the DINOv3 model name from the official weight filename.
     Expects filenames like: `vitb16_pretrain.pth`, `vitl14_pretrain.pth`, etc.
     """
     model_name = weights_path.name.split("_pretrain")[0]
     if not model_name:
+        msg = "dinov3_weights_path not in official format; model_name cannot be inferred."
         raise ValueError(
-            "dinov3_weights_path not in official format; model_name cannot be inferred."
+            msg,
         )
     return model_name
 
@@ -56,8 +58,7 @@ def get_dinov3(
     dinov3_repo_path: str,
     resize: int = 384,
 ) -> tuple[nn.Module, Any]:
-    """
-    Load a DINOv3 model and its matching preprocessing transform.
+    """Load a DINOv3 model and its matching preprocessing transform.
 
     Args:
         dinov3_weights_path: Path to the pretrained weights file (local).
@@ -67,10 +68,12 @@ def get_dinov3(
 
     Returns:
         (model, transform): The loaded model (in eval mode) and the preprocessing transform.
+
     """
     weights_path = pathlib.Path(dinov3_weights_path)
     if not weights_path.exists():
-        raise FileNotFoundError(f"dinov3_weights_path does not exist: {weights_path}")
+        msg = f"dinov3_weights_path does not exist: {weights_path}"
+        raise FileNotFoundError(msg)
 
     model_name = _infer_model_name(weights_path)
 

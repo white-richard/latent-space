@@ -4,7 +4,7 @@
 # the terms of the DINOv3 License Agreement.
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.nn.init import trunc_normal_
 
 
@@ -18,7 +18,7 @@ class DINOHead(nn.Module):
         hidden_dim=2048,
         bottleneck_dim=256,
         mlp_bias=True,
-    ):
+    ) -> None:
         super().__init__()
         nlayers = max(nlayers, 1)
         self.mlp = _build_mlp(
@@ -34,7 +34,7 @@ class DINOHead(nn.Module):
     def init_weights(self) -> None:
         self.apply(self._init_weights)
 
-    def _init_weights(self, m):
+    def _init_weights(self, m) -> None:
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
@@ -53,15 +53,14 @@ class DINOHead(nn.Module):
 def _build_mlp(nlayers, in_dim, bottleneck_dim, hidden_dim=None, use_bn=False, bias=True):
     if nlayers == 1:
         return nn.Linear(in_dim, bottleneck_dim, bias=bias)
-    else:
-        layers = [nn.Linear(in_dim, hidden_dim, bias=bias)]
+    layers = [nn.Linear(in_dim, hidden_dim, bias=bias)]
+    if use_bn:
+        layers.append(nn.BatchNorm1d(hidden_dim))
+    layers.append(nn.GELU())
+    for _ in range(nlayers - 2):
+        layers.append(nn.Linear(hidden_dim, hidden_dim, bias=bias))
         if use_bn:
             layers.append(nn.BatchNorm1d(hidden_dim))
         layers.append(nn.GELU())
-        for _ in range(nlayers - 2):
-            layers.append(nn.Linear(hidden_dim, hidden_dim, bias=bias))
-            if use_bn:
-                layers.append(nn.BatchNorm1d(hidden_dim))
-            layers.append(nn.GELU())
-        layers.append(nn.Linear(hidden_dim, bottleneck_dim, bias=bias))
-        return nn.Sequential(*layers)
+    layers.append(nn.Linear(hidden_dim, bottleneck_dim, bias=bias))
+    return nn.Sequential(*layers)

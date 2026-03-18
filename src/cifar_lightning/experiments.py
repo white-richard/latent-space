@@ -97,7 +97,7 @@ def experiment_metric_cifar100():
                 overrides={
                     "model.use_mhc": True,
                 },
-            )
+            ),
         ]
 
     return run_experiment_with_variants(
@@ -156,7 +156,7 @@ def experiment_baseline_cifar100():
                 overrides={
                     "model.use_mhc": True,
                 },
-            )
+            ),
         ]
 
     return run_experiment_with_variants(
@@ -221,6 +221,6 @@ def experiment_baseline_cifar10():
 
 
 if __name__ == "__main__":
-    import latent_space.experiment.experiment_runner as experiment_runner
+    from latent_space.experiment import experiment_runner
 
     experiment_runner.main(experiments_module=sys.modules[__name__])

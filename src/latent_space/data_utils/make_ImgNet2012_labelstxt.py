@@ -1,10 +1,11 @@
 from pathlib import Path
+
 import torch
 
+
 def make_ImgNet2012_labels_txt(imagenet_data_dir: str) -> None:
-    """
-    Generate the labels.txt file for ImageNet-2012 dataset.
-    
+    """Generate the labels.txt file for ImageNet-2012 dataset.
+
     :param imagenet_data_dir: Path to the ImageNet-2012 data directory containing meta.bin
     :type imagenet_data_dir: str
     """
@@ -12,7 +13,8 @@ def make_ImgNet2012_labels_txt(imagenet_data_dir: str) -> None:
     meta_bin_path = data_dir / "meta.bin"
 
     if not meta_bin_path.exists():
-        raise FileNotFoundError(f"meta.bin not found at {meta_bin_path}")
+        msg = f"meta.bin not found at {meta_bin_path}"
+        raise FileNotFoundError(msg)
 
     meta = torch.load(meta_bin_path, map_location="cpu")
 

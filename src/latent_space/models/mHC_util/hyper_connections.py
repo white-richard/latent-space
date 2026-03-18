@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
 from functools import partial
 from random import randrange
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -12,6 +12,9 @@ from einops.layers.torch import Rearrange, Reduce
 from torch import cat, nn
 from torch.nn import Module
 from torch.utils._pytree import tree_flatten, tree_unflatten
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 """
 ein notation:
@@ -91,7 +94,10 @@ def orthostochastic_project(logits, ns_steps=5, ns_eps=1e-7, ns_coeffs=(3.0, -3.
 
 
 def get_expand_reduce_stream_functions(
-    num_streams, add_stream_embed=False, dim=None, disable=False
+    num_streams,
+    add_stream_embed=False,
+    dim=None,
+    disable=False,
 ):
     if num_streams == 1 or disable:
         return (nn.Identity(), nn.Identity())
@@ -111,7 +117,11 @@ def get_expand_reduce_stream_functions(
 
 
 def get_init_and_expand_reduce_stream_functions(
-    num_streams, num_fracs=1, dim=None, add_stream_embed=False, disable=None
+    num_streams,
+    num_fracs=1,
+    dim=None,
+    add_stream_embed=False,
+    disable=None,
 ):
     disable = default(disable, num_streams == 1 and num_fracs == 1)
 
@@ -119,7 +129,10 @@ def get_init_and_expand_reduce_stream_functions(
 
     init_hyper_conn_fn = partial(hyper_conn_klass, num_streams, num_fracs=num_fracs)
     expand_reduce_fns = get_expand_reduce_stream_functions(
-        num_streams, add_stream_embed=add_stream_embed, dim=dim, disable=disable
+        num_streams,
+        add_stream_embed=add_stream_embed,
+        dim=dim,
+        disable=disable,
     )
 
     if exists(dim):
@@ -132,7 +145,7 @@ def get_init_and_expand_reduce_stream_functions(
 
 
 class RMSNorm(Module):
-    def __init__(self, dim):
+    def __init__(self, dim) -> None:
         super().__init__()
         self.scale = dim**0.5
         self.gamma = nn.Parameter(torch.zeros(dim))
@@ -153,13 +166,13 @@ class Residual(Module):
         branch: Module | None = None,
         residual_transform: Module | None = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__()
         self.branch = branch
         self.residual_transform = default(residual_transform, nn.Identity())
 
     def width_connection(self, residuals):
-        return residuals, residuals, dict()
+        return residuals, residuals, {}
 
     def depth_connection(
         self,
@@ -176,9 +189,7 @@ class Residual(Module):
 
             branch_output = branch(branch_input, *args, **kwargs)
 
-            residual = add_residual(branch_output)
-
-            return residual
+            return add_residual(branch_output)
 
         return forward_and_add_residual
 
@@ -227,10 +238,8 @@ class HyperConnections(Module):
         ns_steps=5,
         ns_eps=1e-7,
         ns_coeffs=(3.0, -3.2, 1.2),
-    ):
-        """
-        Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
-        """
+    ) -> None:
+        """Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606."""
         super().__init__()
 
         self.branch = branch
@@ -280,11 +289,11 @@ class HyperConnections(Module):
         init_alpha0[init_residual_index, :] = 1.0
 
         self.static_alpha = nn.Parameter(
-            cat((init_alpha0, torch.eye(num_residual_streams_fracs)), dim=1)
+            cat((init_alpha0, torch.eye(num_residual_streams_fracs)), dim=1),
         )
 
         self.dynamic_alpha_fn = nn.Parameter(
-            torch.zeros(dim, num_residual_streams_fracs + num_input_views_fracs)
+            torch.zeros(dim, num_residual_streams_fracs + num_input_views_fracs),
         )
         self.dynamic_alpha_scale = nn.Parameter(torch.ones(()) * 1e-2)
 
@@ -375,7 +384,9 @@ class HyperConnections(Module):
 
             residuals_mixed_source = self.split_fracs(residuals_mixed_source)
             residuals_mixed_source = rearrange(
-                residuals_mixed_source, "(b s) ... d -> b ... s d", s=streams
+                residuals_mixed_source,
+                "(b s) ... d -> b ... s d",
+                s=streams,
             )
 
             if self.mhc_h_res_proj == "orthostochastic":
@@ -398,12 +409,12 @@ class HyperConnections(Module):
 
             if getattr(self, "collect_stats", False):
                 with torch.no_grad():
-                    stats = dict(
-                        h_res_min=H_res.min(),
-                        h_res_row_sum=H_res.sum(dim=-1).mean(),
-                        h_res_col_sum=H_res.sum(dim=-2).mean(),
-                        h_pre_min=H_pre.min(),
-                    )
+                    stats = {
+                        "h_res_min": H_res.min(),
+                        "h_res_row_sum": H_res.sum(dim=-1).mean(),
+                        "h_res_col_sum": H_res.sum(dim=-2).mean(),
+                        "h_pre_min": H_pre.min(),
+                    }
                     if H_post is not None:
                         stats["h_post_min"] = H_post.min()
                     self.last_stats = {k: v.detach() for k, v in stats.items()}
@@ -416,7 +427,7 @@ class HyperConnections(Module):
             return (
                 branch_input,
                 maybe_transformed_residuals,
-                dict(beta=H_post, residuals_mixed=residuals_mixed),
+                {"beta": H_post, "residuals_mixed": residuals_mixed},
             )
 
         # norm
@@ -433,7 +444,7 @@ class HyperConnections(Module):
         alpha = dynamic_alpha + static_alpha
 
         alpha = self.split_fracs(
-            alpha
+            alpha,
         )  # (batch, seq, fracs1, streams, fracs2, input + residual streams)
 
         # beta for weights from branch output back to residual streams
@@ -459,14 +470,14 @@ class HyperConnections(Module):
                 alpha_residual = alpha[..., num_input_views_fracs:]
                 alpha_branch_abs_mean = alpha_branch.abs().mean()
                 alpha_residual_abs_mean = alpha_residual.abs().mean()
-                stats = dict(
-                    alpha_branch_mean=alpha_branch.mean(),
-                    alpha_branch_abs_mean=alpha_branch_abs_mean,
-                    alpha_residual_mean=alpha_residual.mean(),
-                    alpha_residual_abs_mean=alpha_residual_abs_mean,
-                    alpha_branch_residual_ratio=alpha_branch_abs_mean
+                stats = {
+                    "alpha_branch_mean": alpha_branch.mean(),
+                    "alpha_branch_abs_mean": alpha_branch_abs_mean,
+                    "alpha_residual_mean": alpha_residual.mean(),
+                    "alpha_residual_abs_mean": alpha_residual_abs_mean,
+                    "alpha_branch_residual_ratio": alpha_branch_abs_mean
                     / (alpha_residual_abs_mean + 1e-8),
-                )
+                }
                 if beta is not None:
                     stats.update(
                         beta_mean=beta.mean(),
@@ -494,7 +505,7 @@ class HyperConnections(Module):
 
         branch_input = self.merge_fracs(branch_input)
 
-        return branch_input, maybe_transformed_residuals, dict(beta=beta)
+        return branch_input, maybe_transformed_residuals, {"beta": beta}
 
     def depth_connection(self, branch_output, residuals, *, beta, residuals_mixed=None):
         assert self.add_branch_out_to_residual
@@ -548,9 +559,7 @@ class HyperConnections(Module):
 
             branch_output = branch(branch_input, *args, **kwargs)
 
-            residual = add_residual(branch_output)
-
-            return residual
+            return add_residual(branch_output)
 
         return forward_and_add_residual
 
@@ -576,17 +585,17 @@ class HyperConnections(Module):
 
 
 HyperConnections.get_expand_reduce_stream_functions = staticmethod(
-    get_expand_reduce_stream_functions
+    get_expand_reduce_stream_functions,
 )
 HyperConnections.get_init_and_expand_reduce_stream_functions = staticmethod(
-    get_init_and_expand_reduce_stream_functions
+    get_init_and_expand_reduce_stream_functions,
 )
 
 # stream embed
 
 
 class StreamEmbed(Module):
-    def __init__(self, num_streams, dim, channel_first=False, expand_to_streams=False):
+    def __init__(self, num_streams, dim, channel_first=False, expand_to_streams=False) -> None:
         super().__init__()
         self.channel_first = channel_first
         self.num_streams = num_streams
@@ -617,7 +626,7 @@ class StreamEmbed(Module):
 
 
 class AttentionPoolReduceStream(Module):
-    def __init__(self, num_streams, dim, channel_first=False):
+    def __init__(self, num_streams, dim, channel_first=False) -> None:
         super().__init__()
         self.num_streams = num_streams
         self.channel_first = channel_first

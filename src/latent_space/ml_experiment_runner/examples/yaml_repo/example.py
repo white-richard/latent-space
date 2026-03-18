@@ -1,5 +1,4 @@
-"""
-YAML / dict adapter example.
+"""YAML / dict adapter example.
 
 Demonstrates a custom ConfigAdapter that works with plain dict configs
 (as you'd load from a YAML file).
@@ -56,7 +55,7 @@ def fake_train(config: dict) -> Metrics:
     return Metrics(accuracy=acc, loss=loss)
 
 
-def main():
+def main() -> None:
     # Simulate configs loaded from YAML files
     config_a = {"seed": 0, "lr": 1e-3, "batch_size": 32}
     config_b = {"seed": 0, "lr": 5e-3, "batch_size": 64}

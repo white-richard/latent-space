@@ -27,7 +27,7 @@ def rope_apply(x: Tensor, sin: Tensor, cos: Tensor) -> Tensor:
 
 
 class LinearKMaskedBias(nn.Linear):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         o = self.out_features
         assert o % 3 == 0
@@ -65,7 +65,10 @@ class SelfAttention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def apply_rope(
-        self, q: Tensor, k: Tensor, rope: Tensor | tuple[Tensor, Tensor]
+        self,
+        q: Tensor,
+        k: Tensor,
+        rope: Tensor | tuple[Tensor, Tensor],
     ) -> tuple[Tensor, Tensor]:
         # All operations will use the dtype of rope, the output is cast back to the dtype of q and k
         q_dtype = q.dtype
@@ -91,8 +94,7 @@ class SelfAttention(nn.Module):
         qkv = self.qkv(x)
         attn_v = self.compute_attention(qkv=qkv, attn_bias=attn_bias, rope=rope)
         x = self.proj(attn_v)
-        x = self.proj_drop(x)
-        return x
+        return self.proj_drop(x)
 
     def forward_list(self, x_list, attn_bias=None, rope_list=None) -> list[Tensor]:
         assert len(x_list) == len(rope_list)  # should be enforced by the Block
@@ -100,7 +102,7 @@ class SelfAttention(nn.Module):
         qkv_flat = self.qkv(x_flat)
         qkv_list = uncat_with_shapes(qkv_flat, shapes, num_tokens)
         att_out = []
-        for _, (qkv, _, rope) in enumerate(zip(qkv_list, shapes, rope_list)):
+        for _, (qkv, _, rope) in enumerate(zip(qkv_list, shapes, rope_list, strict=False)):
             att_out.append(self.compute_attention(qkv, attn_bias=attn_bias, rope=rope))
         x_flat, shapes, num_tokens = cat_keep_shapes(att_out)
         x_flat = self.proj(x_flat)
@@ -171,5 +173,4 @@ class CausalSelfAttention(nn.Module):
             is_causal=is_causal,
         )
         x = x.transpose(1, 2).contiguous().view(B, N, C)
-        x = self.proj_drop(self.proj(x))
-        return x
+        return self.proj_drop(self.proj(x))

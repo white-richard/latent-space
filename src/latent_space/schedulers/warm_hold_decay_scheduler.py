@@ -7,8 +7,7 @@ from torch.optim.lr_scheduler import LambdaLR
 
 
 class WHDScheduler(LambdaLR):
-    """
-    Warmup -> Hold (constant) -> Optional decay to the end (triggered manually).
+    """Warmup -> Hold (constant) -> Optional decay to the end (triggered manually).
 
     - If cooldown NOT triggered: after warmup, multiplier stays 1.0 until n_iterations.
     - If cooldown triggered at step S: decay starts at S and ends at n_iterations
@@ -30,7 +29,7 @@ class WHDScheduler(LambdaLR):
         last_epoch: int = -1,
         start_cooldown_immediately: bool = False,
         auto_trigger_cooldown: bool = False,  # auto decay at (1 - frac_decay) * n_iterations
-    ):
+    ) -> None:
         self.n_iterations = n_iterations
         self.final_lr_factor = final_lr_factor
         self.frac_warmup = frac_warmup
@@ -40,9 +39,11 @@ class WHDScheduler(LambdaLR):
         self.auto_trigger_cooldown = auto_trigger_cooldown
 
         if self.frac_decay is not None and not (0.0 < self.frac_decay <= 1.0):
-            raise ValueError("frac_decay must be in (0, 1] or None")
+            msg = "frac_decay must be in (0, 1] or None"
+            raise ValueError(msg)
         if self.auto_trigger_cooldown and self.frac_decay is None:
-            raise ValueError("auto_trigger_cooldown requires frac_decay to be set")
+            msg = "auto_trigger_cooldown requires frac_decay to be set"
+            raise ValueError(msg)
 
         self.n_warmup = int(self.frac_warmup * self.n_iterations)
         self.cooldown_start_step: int | None = None  # when decay begins
@@ -51,10 +52,11 @@ class WHDScheduler(LambdaLR):
 
         if self.auto_trigger_cooldown:
             if self.n_iterations <= 0:
-                raise ValueError("auto_trigger_cooldown requires n_iterations > 0")
+                msg = "auto_trigger_cooldown requires n_iterations > 0"
+                raise ValueError(msg)
             planned_fraction = max(0.0, min(1.0, 1.0 - self.frac_decay))
             latest_valid_step = max(0, self.n_iterations - 1)
-            computed_step = int(math.floor(planned_fraction * self.n_iterations))
+            computed_step = math.floor(planned_fraction * self.n_iterations)
             computed_step = max(0, min(latest_valid_step, computed_step))
             self.auto_trigger_step = max(self.n_warmup, computed_step)
 
@@ -71,9 +73,7 @@ class WHDScheduler(LambdaLR):
             self.trigger_cooldown(step=self.last_epoch + 1)
 
     def trigger_cooldown(self, step: int | None = None) -> None:
-        """
-        Begin cooldown so decay starts immediately from `step` (defaults to next scheduled step).
-        """
+        """Begin cooldown so decay starts immediately from `step` (defaults to next scheduled step)."""
         if step is None:
             step = self.last_epoch + 1
 
@@ -84,7 +84,7 @@ class WHDScheduler(LambdaLR):
         if self.frac_decay is None:
             end = self.n_iterations
         else:
-            decay_len = max(1, int(math.ceil(self.frac_decay * step)))
+            decay_len = max(1, math.ceil(self.frac_decay * step))
             end = step + decay_len
 
         self.cooldown_end_step = min(end, self.n_iterations)
@@ -148,7 +148,8 @@ class WHDScheduler(LambdaLR):
             return 1 - t**2
         if self.decay_type == "1-sqrt":
             return 1 - math.sqrt(t)
-        raise ValueError(f"Unknown decay_type: {self.decay_type}")
+        msg = f"Unknown decay_type: {self.decay_type}"
+        raise ValueError(msg)
 
     def state_dict(self) -> dict[str, Any]:
         sd = super().state_dict()
@@ -191,7 +192,7 @@ if __name__ == "__main__":
             final_lr_factor=final_lr_factor,
             decay_type=decay_type,
             init_div_factor=100.0,
-            auto_trigger_cooldown=False
+            auto_trigger_cooldown=False,
             # start_cooldown_immediately=start_cooldown_immediately,
         )
 

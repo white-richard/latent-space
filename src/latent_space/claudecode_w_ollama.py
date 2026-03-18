@@ -13,9 +13,7 @@ MODEL = "ministral-3:14b"  # qwen3-coder:30b | nemotron-3-nano:latest
 
 # Helper
 def _resolve_abs_path(path: str) -> Path:
-    """
-    file.py -> /Users/you/project/file.py
-    """
+    """file.py -> /Users/you/project/file.py."""
     path = Path(path).expanduser()
     if not path.is_absolute():
         path = (Path.cwd() / path).resolve()
@@ -24,8 +22,7 @@ def _resolve_abs_path(path: str) -> Path:
 
 # Tools for LLM
 def read_file_tool(filename: str) -> dict[str, Any]:
-    """
-    Gets the full content of a file provided by the user.
+    """Gets the full content of a file provided by the user.
     :param filename: The name of the file to read.
     :return: The full content of the file.
     """
@@ -40,8 +37,7 @@ def read_file_tool(filename: str) -> dict[str, Any]:
 
 
 def list_files_tool(path: str) -> dict[str, Any]:
-    """
-    Lists the files in a directory provided by the user.
+    """Lists the files in a directory provided by the user.
     :param path: The path to a directory to list files from.
     :return: A list of files in the directory.
     """
@@ -53,8 +49,7 @@ def list_files_tool(path: str) -> dict[str, Any]:
 
 
 def edit_file_tool(path: str, old_str: str, new_str: str) -> dict[str, Any]:
-    """
-    Replaces first occurrence of old_str with new_str in file. If old_str is empty,
+    """Replaces first occurrence of old_str with new_str in file. If old_str is empty,
     create/overwrite file with new_str.
     :param path: The path to the file to edit.
     :param old_str: The string to replace.
@@ -109,8 +104,7 @@ def get_full_system_prompt():
 
 
 def extract_tool_invocations(text: str) -> list[tuple[str, dict[str, Any]]]:
-    """
-    Return list of (tool_name, args) requested in 'tool: name({...})' lines.
+    """Return list of (tool_name, args) requested in 'tool: name({...})' lines.
     The parser expects single-line, compact JSON in parentheses.
     """
     invocations = []
@@ -140,7 +134,7 @@ def execute_llm_call(conversation: list[dict[str, str]]):
     return response["message"]["content"]
 
 
-def run_coding_agent_loop():
+def run_coding_agent_loop() -> None:
     print(get_full_system_prompt())
     conversation = [{"role": "system", "content": get_full_system_prompt()}]
     while True:
@@ -168,7 +162,9 @@ def run_coding_agent_loop():
                     resp = tool(args.get("path", "."))
                 elif name == "edit_file":
                     resp = tool(
-                        args.get("path", "."), args.get("old_str", ""), args.get("new_str", "")
+                        args.get("path", "."),
+                        args.get("old_str", ""),
+                        args.get("new_str", ""),
                     )
                 conversation.append({"role": "user", "content": f"tool_result({json.dumps(resp)})"})
 

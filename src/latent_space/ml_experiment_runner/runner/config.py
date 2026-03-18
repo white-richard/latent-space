@@ -14,7 +14,7 @@ class RunnerConfig:
     min_successful_seeds: int = 1
     sequence_export_mode: Literal["full", "summary", "final"] = "summary"
     metric_directions: dict[str, Literal["higher_is_better", "lower_is_better"]] = field(
-        default_factory=dict
+        default_factory=dict,
     )
     default_metric_direction: Literal["higher_is_better", "lower_is_better"] = "higher_is_better"
     latex_decimal_places: int = 4

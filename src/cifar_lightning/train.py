@@ -22,7 +22,7 @@ from .lightning_module import VisionTransformerModule
 torch.backends.cudnn.benchmark = True
 
 
-def set_all_seeds(seed: int):
+def set_all_seeds(seed: int) -> None:
     """Set all random seeds for reproducibility."""
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -64,7 +64,7 @@ def generate_visualizations(
     module: VisionTransformerModule,
     datamodule: CIFARDataModule,
     config: ExperimentConfig,
-):
+) -> None:
     """Generate embedding visualizations after training."""
     print("\nGenerating embedding visualizations...")
 
@@ -99,7 +99,6 @@ def generate_visualizations(
 
 def train(config: Config):
     """Main training function."""
-
     # Set random seeds
     if config.experiment.seed != -1:
         set_all_seeds(config.experiment.seed)
@@ -138,7 +137,7 @@ def train(config: Config):
         if config.training.clip_norm and config.training.clip_norm > 0
         else None,
         fast_dev_run=config.experiment.debug_mode,
-        overfit_batches=config.experiment.overfit_batches
+        overfit_batches=config.experiment.overfit_batches,
     )
 
     # Train the model

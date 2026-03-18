@@ -1,5 +1,4 @@
-"""
-Generic experiment definitions template.
+"""Generic experiment definitions template.
 
 This file shows how to define experiment entrypoints that can be auto-discovered
 by `experiment_runner` using the `experiment_{name}` naming convention.
@@ -88,8 +87,7 @@ def _example_runner(config: Config) -> dict[str, float]:
 
 
 def experiment_example_task():
-    """
-    Example experiment entrypoint.
+    """Example experiment entrypoint.
 
     Steps to adapt:
     - Replace the Config(...) sections with your dataset/model/training settings.
@@ -169,6 +167,6 @@ def experiment_example_task():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import latent_space.experiment.experiment_runner as experiment_runner
+    from latent_space.experiment import experiment_runner
 
     experiment_runner.main(experiments_module=sys.modules[__name__])

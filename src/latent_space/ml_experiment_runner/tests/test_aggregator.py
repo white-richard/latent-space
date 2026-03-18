@@ -35,7 +35,7 @@ class Outer:
     top_loss: float
 
 
-def test_scalar_mean_std():
+def test_scalar_mean_std() -> None:
     results = [SimpleMetrics(accuracy=0.8, loss=0.5), SimpleMetrics(accuracy=0.9, loss=0.3)]
     agg = MetricsAggregator.aggregate(results)
 
@@ -52,7 +52,7 @@ def test_scalar_mean_std():
     assert loss_leaf.mean == pytest.approx(0.4)
 
 
-def test_nested_dataclass():
+def test_nested_dataclass() -> None:
     results = [
         Outer(inner=SimpleMetrics(accuracy=0.7, loss=0.6), top_loss=1.0),
         Outer(inner=SimpleMetrics(accuracy=0.9, loss=0.4), top_loss=0.8),
@@ -65,7 +65,7 @@ def test_nested_dataclass():
     assert agg["top_loss"].mean == pytest.approx(0.9)
 
 
-def test_sequence_aggregation():
+def test_sequence_aggregation() -> None:
     results = [
         NestedMetrics(val_acc=0.9, train_losses=[0.5, 0.4, 0.3]),
         NestedMetrics(val_acc=0.8, train_losses=[0.6, 0.5, 0.4]),
@@ -80,7 +80,7 @@ def test_sequence_aggregation():
     assert seq_leaf.n_seeds == 2
 
 
-def test_sequence_length_mismatch_warning():
+def test_sequence_length_mismatch_warning() -> None:
     results = [
         NestedMetrics(val_acc=0.9, train_losses=[0.5, 0.4, 0.3]),
         NestedMetrics(val_acc=0.8, train_losses=[0.6, 0.5]),
@@ -97,7 +97,7 @@ def test_sequence_length_mismatch_warning():
     assert len(seq_leaf.mean) == 2  # truncated to shortest
 
 
-def test_unsupported_type_skipped():
+def test_unsupported_type_skipped() -> None:
     @dataclasses.dataclass
     class BadMetrics:
         score: float
@@ -114,6 +114,6 @@ def test_unsupported_type_skipped():
     assert "extra" not in agg
 
 
-def test_empty_results():
+def test_empty_results() -> None:
     agg = MetricsAggregator.aggregate([])
     assert agg == {}

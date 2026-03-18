@@ -4,7 +4,7 @@
 # the terms of the DINOv3 License Agreement.
 
 import math
-from typing import Callable, Tuple, Union
+from collections.abc import Callable
 
 from torch import Tensor, nn
 
@@ -19,8 +19,7 @@ def make_2tuple(x):
 
 
 class PatchEmbed(nn.Module):
-    """
-    2D image to patch embedding: (B,C,H,W) -> (B,N,D)
+    """2D image to patch embedding: (B,C,H,W) -> (B,N,D).
 
     Args:
         img_size: Image size.
@@ -28,12 +27,13 @@ class PatchEmbed(nn.Module):
         in_chans: Number of input image channels.
         embed_dim: Number of linear projection output channels.
         norm_layer: Normalization layer.
+
     """
 
     def __init__(
         self,
-        img_size: Union[int, Tuple[int, int]] = 224,
-        patch_size: Union[int, Tuple[int, int]] = 16,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int | tuple[int, int] = 16,
         in_chans: int = 3,
         embed_dim: int = 768,
         norm_layer: Callable | None = None,
@@ -82,7 +82,7 @@ class PatchEmbed(nn.Module):
             flops += Ho * Wo * self.embed_dim
         return flops
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         k = 1 / (self.in_chans * (self.patch_size[0] ** 2))
         nn.init.uniform_(self.proj.weight, -math.sqrt(k), math.sqrt(k))
         if self.proj.bias is not None:

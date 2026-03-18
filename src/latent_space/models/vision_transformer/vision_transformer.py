@@ -60,7 +60,7 @@ def named_apply(
     if not depth_first and include_root:
         fn(module=module, name=name)
     for child_name, child_module in module.named_children():
-        child_name = ".".join((name, child_name)) if name else child_name
+        child_name = f"{name}.{child_name}" if name else child_name
         named_apply(
             fn=fn,
             module=child_module,
@@ -73,7 +73,7 @@ def named_apply(
     return module
 
 
-def init_weights_vit(module: nn.Module, name: str = ""):
+def init_weights_vit(module: nn.Module, name: str = "") -> None:
     if isinstance(module, nn.Linear):
         torch.nn.init.trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
@@ -130,7 +130,7 @@ class DinoVisionTransformer(nn.Module):
         mhc_num_streams: int = 1,  # 1 | 4 I saw in the mHC example repo
         # -------------
         **ignored_kwargs,
-    ):
+    ) -> None:
         super().__init__()
         if len(ignored_kwargs) > 0:
             logger.warning(f"Ignored kwargs: {ignored_kwargs}")
@@ -169,7 +169,7 @@ class DinoVisionTransformer(nn.Module):
         self.n_storage_tokens = n_storage_tokens
         if self.n_storage_tokens > 0:
             self.storage_tokens = nn.Parameter(
-                torch.empty(1, n_storage_tokens, embed_dim, device=device)
+                torch.empty(1, n_storage_tokens, embed_dim, device=device),
             )
         logger.info(f"using base={pos_embed_rope_base} for rope new")
         logger.info(f"using min_period={pos_embed_rope_min_period} for rope new")
@@ -243,7 +243,7 @@ class DinoVisionTransformer(nn.Module):
             self.head = nn.Linear(embed_dim, num_classes)
         self.mask_token = nn.Parameter(torch.empty(1, embed_dim, device=device))
 
-    def init_weights(self):
+    def init_weights(self) -> None:
         self.rope_embed._init_weights()
         nn.init.normal_(self.cls_token, std=0.02)
         if self.n_storage_tokens > 0:
@@ -284,7 +284,9 @@ class DinoVisionTransformer(nn.Module):
         return x, (H, W)
 
     def forward_features_list(
-        self, x_list: list[Tensor], masks_list: list[Tensor]
+        self,
+        x_list: list[Tensor],
+        masks_list: list[Tensor],
     ) -> list[dict[str, Tensor]]:
         x = []
         rope = []
@@ -329,17 +331,18 @@ class DinoVisionTransformer(nn.Module):
                     "x_norm_patchtokens": x_norm_patch,
                     "x_prenorm": x,
                     "masks": masks,
-                }
+                },
             )
         return output
 
     def forward_features(
-        self, x: Tensor | list[Tensor], masks: Tensor | None = None
+        self,
+        x: Tensor | list[Tensor],
+        masks: Tensor | None = None,
     ) -> list[dict[str, Tensor]]:
         if isinstance(x, torch.Tensor):
             return self.forward_features_list([x], [masks])[0]
-        else:
-            return self.forward_features_list(x, masks)
+        return self.forward_features_list(x, masks)
 
     def _get_intermediate_layers_not_chunked(self, x: Tensor, n: int = 1) -> list[Tensor]:
         x, (H, W) = self.prepare_tokens_with_masks(x)
@@ -351,10 +354,7 @@ class DinoVisionTransformer(nn.Module):
         output, total_block_len = [], len(self.blocks)
         blocks_to_take = range(total_block_len - n, total_block_len) if isinstance(n, int) else n
         for i, blk in enumerate(self.blocks):
-            if self.rope_embed is not None:
-                rope_sincos = self.rope_embed(H=H, W=W)
-            else:
-                rope_sincos = None
+            rope_sincos = self.rope_embed(H=H, W=W) if self.rope_embed is not None else None
             x = blk(x, rope_sincos)
             if i in blocks_to_take:
                 # mHC: Append a reduced view/copy so returned tensors match expected (B, N, D)
@@ -400,25 +400,27 @@ class DinoVisionTransformer(nn.Module):
             ]
         if not return_class_token and not return_extra_tokens:
             return tuple(outputs)
-        elif return_class_token and not return_extra_tokens:
+        if return_class_token and not return_extra_tokens:
             return tuple(zip(outputs, class_tokens, strict=False))
-        elif not return_class_token and return_extra_tokens:
+        if not return_class_token and return_extra_tokens:
             return tuple(zip(outputs, extra_tokens, strict=False))
-        elif return_class_token and return_extra_tokens:
+        if return_class_token and return_extra_tokens:
             return tuple(zip(outputs, class_tokens, extra_tokens, strict=False))
+        return None
 
     def forward(
-        self, *args, is_training: bool = False, **kwargs
+        self,
+        *args,
+        is_training: bool = False,
+        **kwargs,
     ) -> list[dict[str, Tensor]] | Tensor:
         ret = self.forward_features(*args, **kwargs)
         if is_training:
             return ret
-        else:
-            return self.head(ret["x_norm_clstoken"])
+        return self.head(ret["x_norm_clstoken"])
 
     def forward_cls(self, *args, **kwargs) -> torch.Tensor | list[torch.Tensor]:
-        """
-        Return the normalized CLS token(s) before the classification head.
+        """Return the normalized CLS token(s) before the classification head.
         Mirrors forward_features’ input handling:
         - Single tensor input -> returns a single tensor.
         - List of tensors -> returns a list of tensors.
@@ -430,7 +432,7 @@ class DinoVisionTransformer(nn.Module):
 
 
 def vit_tiny(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=192,
         depth=12,
@@ -438,11 +440,10 @@ def vit_tiny(patch_size=16, **kwargs):
         ffn_ratio=4,
         **kwargs,
     )
-    return model
 
 
 def vit_small(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=384,
         depth=12,
@@ -450,11 +451,10 @@ def vit_small(patch_size=16, **kwargs):
         ffn_ratio=4,
         **kwargs,
     )
-    return model
 
 
 def vit_base(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=768,
         depth=12,
@@ -462,11 +462,10 @@ def vit_base(patch_size=16, **kwargs):
         ffn_ratio=4,
         **kwargs,
     )
-    return model
 
 
 def vit_large(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=1024,
         depth=24,
@@ -474,11 +473,10 @@ def vit_large(patch_size=16, **kwargs):
         ffn_ratio=4,
         **kwargs,
     )
-    return model
 
 
 def vit_so400m(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=1152,
         depth=27,
@@ -486,11 +484,10 @@ def vit_so400m(patch_size=16, **kwargs):
         ffn_ratio=3.777777778,
         **kwargs,
     )
-    return model
 
 
 def vit_huge2(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=1280,
         depth=32,
@@ -498,14 +495,11 @@ def vit_huge2(patch_size=16, **kwargs):
         ffn_ratio=4,
         **kwargs,
     )
-    return model
 
 
 def vit_giant2(patch_size=16, **kwargs):
-    """
-    Close to ViT-giant, with embed-dim 1536 and 24 heads => embed-dim per head 64
-    """
-    model = DinoVisionTransformer(
+    """Close to ViT-giant, with embed-dim 1536 and 24 heads => embed-dim per head 64."""
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=1536,
         depth=40,
@@ -513,11 +507,10 @@ def vit_giant2(patch_size=16, **kwargs):
         ffn_ratio=4,
         **kwargs,
     )
-    return model
 
 
 def vit_7b(patch_size=16, **kwargs):
-    model = DinoVisionTransformer(
+    return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=4096,
         depth=40,
@@ -525,4 +518,3 @@ def vit_7b(patch_size=16, **kwargs):
         ffn_ratio=3,
         **kwargs,
     )
-    return model

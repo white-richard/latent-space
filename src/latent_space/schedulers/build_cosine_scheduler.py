@@ -1,9 +1,15 @@
 from timm.scheduler import CosineLRScheduler
 
 
-def create_cosine_scheduler(optimizer, epochs:int, lr_min:float, warmup_t:int, warmup_lr_init:float=1e-6, per_epoch:bool=True):
-    """
-    Create a cosine learning rate scheduler with warmup.
+def create_cosine_scheduler(
+    optimizer,
+    epochs: int,
+    lr_min: float,
+    warmup_t: int,
+    warmup_lr_init: float = 1e-6,
+    per_epoch: bool = True,
+):
+    """Create a cosine learning rate scheduler with warmup.
 
     Args:
         optimizer (torch.optim.Optimizer): Optimizer whose learning rate will be scheduled.
@@ -22,6 +28,7 @@ def create_cosine_scheduler(optimizer, epochs:int, lr_min:float, warmup_t:int, w
 
     Returns:
         CosineLRScheduler: Configured cosine learning rate scheduler.
+
     """
     return CosineLRScheduler(
         optimizer,

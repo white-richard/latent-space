@@ -5,9 +5,8 @@ import torch
 
 
 def set_global_deterministic_seed(seed: int) -> None:
-    """
-    Set a global random seed and enforce deterministic behavior across
-    Python, NumPy, and PyTorch
+    """Set a global random seed and enforce deterministic behavior across
+    Python, NumPy, and PyTorch.
     """
     # Python and NumPy
     random.seed(seed)

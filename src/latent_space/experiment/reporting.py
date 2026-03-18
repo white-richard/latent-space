@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from latent_space.utils.markdown_results import (
     MarkdownTableLogger,
@@ -39,7 +40,7 @@ class ReportConfig:
             "training-complete": "#training-complete",
             "failed": "#failed",
             "evaluating": "#evaluating",
-        }
+        },
     )
 
 
@@ -126,10 +127,7 @@ def resolve_run_id(config: Any) -> str:
 
 
 def resolve_project_name(config: Any, report_config: ReportConfig) -> str:
-    if (
-        report_config.project_name
-        and report_config.project_name != ReportConfig().project_name
-    ):
+    if report_config.project_name and report_config.project_name != ReportConfig().project_name:
         return report_config.project_name
     project_name = _first_present(config, ["experiment.project_name", "project_name"])
     return str(project_name) if project_name is not None else report_config.project_name
@@ -153,7 +151,8 @@ def resolve_tags(config: Any, report_config: ReportConfig) -> list[str]:
 def resolve_parameters(config: Any, report_config: ReportConfig) -> dict[str, Any]:
     parameters = dict(report_config.parameters)
     model_name = _first_present(
-        config, ["model.model_name", "model.name", "model.arch"]
+        config,
+        ["model.model_name", "model.name", "model.arch"],
     )
     learning_rate = _first_present(config, ["training.lr", "optimizer.lr", "lr"])
     batch_size = _first_present(config, ["data.batch_size", "batch_size"])
@@ -182,9 +181,7 @@ def _extract_row_label_payload(
         return None
     row_label_header = result.get("__row_label_header", "name")
     columns = {
-        k: v
-        for k, v in result.items()
-        if not (isinstance(k, str) and k.startswith("__row_label"))
+        k: v for k, v in result.items() if not (isinstance(k, str) and k.startswith("__row_label"))
     }
     return row_labels, row_label_header, columns
 
@@ -196,9 +193,7 @@ def normalize_metrics(result: Any) -> Any:
         if "metrics" in result:
             metrics_value = result.get("metrics")
             return (
-                metrics_value
-                if isinstance(metrics_value, Mapping)
-                else {"metrics": metrics_value}
+                metrics_value if isinstance(metrics_value, Mapping) else {"metrics": metrics_value}
             )
         return result
     return {"metrics": result}
@@ -218,17 +213,23 @@ def metrics_to_markdown_table(metrics: Any, *, float_precision: int = 6) -> str:
             rows.append(row)
         headers = [row_label_header, *columns.keys()]
         return render_markdown_table(
-            headers, rows, float_precision=float_precision
+            headers,
+            rows,
+            float_precision=float_precision,
         ).strip()
 
     if isinstance(metrics, Mapping):
         flattened = flatten_dict(metrics)
         return render_markdown_table(
-            flattened.keys(), [flattened], float_precision=float_precision
+            flattened.keys(),
+            [flattened],
+            float_precision=float_precision,
         ).strip()
 
     return render_markdown_table(
-        ["metrics"], [{"metrics": metrics}], float_precision=float_precision
+        ["metrics"],
+        [{"metrics": metrics}],
+        float_precision=float_precision,
     ).strip()
 
 
@@ -239,11 +240,13 @@ def log_metrics_table(path: Path, metrics: Any, *, float_precision: int = 6) -> 
     if row_payload:
         row_labels, row_label_header, columns = row_payload
         logger.append_columns(
-            columns, row_labels=row_labels, row_label_header=row_label_header
+            columns,
+            row_labels=row_labels,
+            row_label_header=row_label_header,
         )
     else:
         logger.append(
-            normalized if isinstance(normalized, Mapping) else {"metrics": normalized}
+            normalized if isinstance(normalized, Mapping) else {"metrics": normalized},
         )
 
 
@@ -258,7 +261,10 @@ def resolve_plot_paths(result: Any, report_config: ReportConfig) -> list[str]:
 
 
 def resolve_status_tag(
-    result: Any, *, error: Exception | None, report_config: ReportConfig
+    result: Any,
+    *,
+    error: Exception | None,
+    report_config: ReportConfig,
 ) -> str:
     if error is not None:
         return report_config.status_tags.get("failed", "#failed")
@@ -288,7 +294,9 @@ class ObsidianReportWriter:
         run_id = resolve_run_id(config)
         project_name = resolve_project_name(config, self.config)
         status_tag = resolve_status_tag(
-            result, error=status_error, report_config=self.config
+            result,
+            error=status_error,
+            report_config=self.config,
         )
         date_str = datetime.now().strftime(self.config.date_format)
         hypothesis = self.config.hypothesis or (
@@ -296,7 +304,7 @@ class ObsidianReportWriter:
             'Checkpointing will reduce VRAM usage by 60% without affecting convergence.")*'
         )
 
-        parameters = resolve_parameters(config, self.config)
+        resolve_parameters(config, self.config)
         plots = resolve_plot_paths(result, self.config)
         metrics_link = self.config.metrics_link
         metrics_block = metrics_to_markdown_table(normalize_metrics(result))
@@ -369,7 +377,10 @@ class ObsidianReportWriter:
 
 
 def write_config_report(
-    output_dir: Path, config: Any, *, filename: str = "config.md"
+    output_dir: Path,
+    config: Any,
+    *,
+    filename: str = "config.md",
 ) -> Path:
     """Write a markdown table of flattened config hyperparameters."""
     config_path = Path(output_dir) / filename
@@ -393,7 +404,9 @@ def build_variant_section(
     experiment_name: str,
 ) -> list[str]:
     status_tag = resolve_status_tag(
-        summary.result, error=summary.error, report_config=report_config
+        summary.result,
+        error=summary.error,
+        report_config=report_config,
     )
     status_value = status_tag.lstrip("#")
     variants_dir = experiment_root / "variants"
@@ -487,10 +500,11 @@ def write_experiment_report(
             f"tags: {tags_text}",
             "---",
             "",
-        ]
+        ],
     )
 
-    lines: list[str] = frontmatter + [
+    lines: list[str] = [
+        *frontmatter,
         f"# Experiment: {title}",
         "",
         "## Hypothesis",
@@ -516,7 +530,8 @@ def write_experiment_report(
             experiment_name=title,
         )
         variant_path.write_text(
-            "\n".join(variant_lines).strip() + "\n", encoding="utf-8"
+            "\n".join(variant_lines).strip() + "\n",
+            encoding="utf-8",
         )
         lines.append(f"- [[variants/{summary.variant_slug}]]")
 
@@ -524,9 +539,7 @@ def write_experiment_report(
     for obs in observations:
         obs_line = obs if obs.strip().startswith("-") else f"- {obs}"
         lines.append(obs_line)
-    conclusion_line = (
-        conclusion if conclusion.strip().startswith("-") else f"- {conclusion}"
-    )
+    conclusion_line = conclusion if conclusion.strip().startswith("-") else f"- {conclusion}"
     lines.append(conclusion_line)
 
     report_path = Path(experiment_root) / "experiment.md"
@@ -536,7 +549,8 @@ def write_experiment_report(
 
 
 def write_variant_summary(
-    experiment_root: Path, records: list[tuple[str, Path]]
+    experiment_root: Path,
+    records: list[tuple[str, Path]],
 ) -> None:
     """Deprecated: use write_experiment_report instead."""
     _ = experiment_root, records

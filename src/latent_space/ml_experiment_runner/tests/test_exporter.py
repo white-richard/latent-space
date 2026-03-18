@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -11,6 +11,9 @@ from latent_space.ml_experiment_runner.runner.aggregator import AggregatedLeaf
 from latent_space.ml_experiment_runner.runner.config import RunnerConfig
 from latent_space.ml_experiment_runner.runner.exporter import ResultExporter
 from latent_space.ml_experiment_runner.runner.suite import SuiteResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _make_suite_result() -> SuiteResult:
@@ -59,7 +62,7 @@ def _make_suite_result_with_sequences() -> SuiteResult:
     )
 
 
-def test_markdown_output(tmp_path: Path):
+def test_markdown_output(tmp_path: Path) -> None:
     suite_result = _make_suite_result()
     cfg = RunnerConfig(suite_name="test_suite", export_formats=["markdown"])
     exporter = ResultExporter(cfg)
@@ -75,7 +78,7 @@ def test_markdown_output(tmp_path: Path):
     assert "±" in content
 
 
-def test_markdown_best_value_present(tmp_path: Path):
+def test_markdown_best_value_present(tmp_path: Path) -> None:
     suite_result = _make_suite_result()
     cfg = RunnerConfig(
         suite_name="test_suite",
@@ -90,7 +93,7 @@ def test_markdown_best_value_present(tmp_path: Path):
     assert "0.9000" in content or "0.90" in content
 
 
-def test_latex_contains_textbf(tmp_path: Path):
+def test_latex_contains_textbf(tmp_path: Path) -> None:
     suite_result = _make_suite_result()
     cfg = RunnerConfig(
         suite_name="test_suite",
@@ -109,7 +112,7 @@ def test_latex_contains_textbf(tmp_path: Path):
     assert r"\bottomrule" in content
 
 
-def test_latex_decimal_places(tmp_path: Path):
+def test_latex_decimal_places(tmp_path: Path) -> None:
     suite_result = _make_suite_result()
     cfg = RunnerConfig(suite_name="test_suite", export_formats=["latex"], latex_decimal_places=2)
     exporter = ResultExporter(cfg)
@@ -120,7 +123,7 @@ def test_latex_decimal_places(tmp_path: Path):
     assert "0.90" in content
 
 
-def test_excel_sheet_names(tmp_path: Path):
+def test_excel_sheet_names(tmp_path: Path) -> None:
     openpyxl = pytest.importorskip("openpyxl")
 
     suite_result = _make_suite_result()
@@ -135,7 +138,7 @@ def test_excel_sheet_names(tmp_path: Path):
     assert "Scalar Metrics" in wb.sheetnames
 
 
-def test_excel_with_sequences(tmp_path: Path):
+def test_excel_with_sequences(tmp_path: Path) -> None:
     openpyxl = pytest.importorskip("openpyxl")
 
     suite_result = _make_suite_result_with_sequences()

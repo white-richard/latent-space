@@ -6,7 +6,6 @@
 import re
 
 import torch
-
 from dinov3.layers.attention import LinearKMaskedBias
 from dinov3.utils import named_replace
 
@@ -69,14 +68,8 @@ class Fp8LinearFn(torch.autograd.Function):
             grad_a = matmul(grad_out, amax_grad_out, b, amax_b, None)
         else:
             grad_a = None
-        if ctx.b_requires_grad:
-            grad_b = grad_out.t() @ a
-        else:
-            grad_b = None
-        if ctx.bias_requires_grad:
-            grad_bias = grad_out.sum(dim=0)
-        else:
-            grad_bias = None
+        grad_b = grad_out.t() @ a if ctx.b_requires_grad else None
+        grad_bias = grad_out.sum(dim=0) if ctx.bias_requires_grad else None
 
         return grad_a, grad_b, grad_bias
 
@@ -84,16 +77,14 @@ class Fp8LinearFn(torch.autograd.Function):
 class Fp8Linear(torch.nn.Linear):
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         out = Fp8LinearFn.apply(input.flatten(end_dim=-2), self.weight, self.bias)
-        out = out.unflatten(0, input.shape[:-1])
-        return out
+        return out.unflatten(0, input.shape[:-1])
 
 
 class Fp8LinearKMaskedBias(LinearKMaskedBias):
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         masked_bias = self.bias * self.bias_mask if self.bias is not None else None
         out = Fp8LinearFn.apply(input.flatten(end_dim=-2), self.weight, masked_bias)
-        out = out.unflatten(0, input.shape[:-1])
-        return out
+        return out.unflatten(0, input.shape[:-1])
 
 
 def convert_linears_to_fp8(root_module: torch.nn.Module, *, filter: str) -> torch.nn.Module:
@@ -109,15 +100,16 @@ def convert_linears_to_fp8(root_module: torch.nn.Module, *, filter: str) -> torc
         elif type(module) == LinearKMaskedBias:
             new_cls = Fp8LinearKMaskedBias
         else:
-            assert False, str(type(module))
+            raise AssertionError(str(type(module)))
         if module.in_features % 64 != 0 or module.out_features % 64 != 0:
             # This is not a strict requirement, but H100 TensorCores for fp8
             # operate on tiles of 64 elements anyways, and Inductor sometimes
             # pads inner dims to become multiples of 64. Also, if one day we
             # switch back to cuBLAS, it artificially requires dims to be
             # multiples of 16.
+            msg = "fp8 requires all dimensions to be multiples of 64 (consider using ffn_layer=swiglu64 or higher)"
             raise RuntimeError(
-                "fp8 requires all dimensions to be multiples of 64 " "(consider using ffn_layer=swiglu64 or higher)"
+                msg,
             )
         new_module = new_cls(
             in_features=module.in_features,

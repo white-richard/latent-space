@@ -1,7 +1,6 @@
-"""
-Implementation of mHC (https://arxiv.org/pdf/2512.24880)
+"""Implementation of mHC (https://arxiv.org/pdf/2512.24880)
 from (https://github.com/tokenbender/mHC-manifold-constrained-hyper-connections/blob/main/hyper_connections/hyper_connections.py)
-x_{l+1} = H_l^{res} x_l + H_l^{post,T} F(H_l^{pre} x_l, W_l)
+x_{l+1} = H_l^{res} x_l + H_l^{post,T} F(H_l^{pre} x_l, W_l).
 
 with the key constraints:
     H_res: doubly stochastic (Birkhoff polytope; entries ≥ 0, rows sum to 1,
@@ -70,7 +69,10 @@ def sinkhorn_log(logits, num_iters=10, tau=0.05):
 
 
 def get_expand_reduce_stream_functions(
-    num_streams, add_stream_embed=False, dim=None, disable=False
+    num_streams,
+    add_stream_embed=False,
+    dim=None,
+    disable=False,
 ):
     if num_streams == 1 or disable:
         return (nn.Identity(), nn.Identity())
@@ -102,7 +104,10 @@ def get_init_and_expand_reduce_stream_functions(
 
     init_hyper_conn_fn = partial(hyper_conn_klass, num_streams, num_fracs=num_fracs)
     expand_reduce_fns = get_expand_reduce_stream_functions(
-        num_streams, add_stream_embed=add_stream_embed, dim=dim, disable=disable
+        num_streams,
+        add_stream_embed=add_stream_embed,
+        dim=dim,
+        disable=disable,
     )
 
     if exists(dim):
@@ -112,6 +117,7 @@ def get_init_and_expand_reduce_stream_functions(
 
 
 # main classes
+
 
 class HyperConnections(Module):
     def __init__(
@@ -132,12 +138,10 @@ class HyperConnections(Module):
         mhc_num_iters=10,
         mhc_tau=0.05,
         **kwargs,
-    ):
-        """
-        Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
-        """
+    ) -> None:
+        """Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606."""
         super().__init__()
-        
+
         print(f"Skipping these {kwargs} kwargs in HyperConnections init")
 
         self.branch = branch
@@ -217,7 +221,8 @@ class HyperConnections(Module):
         if self.channel_first:
             residuals = rearrange(residuals, "b d ... -> b ... d")
             maybe_transformed_residuals = rearrange(
-                maybe_transformed_residuals, "b d ... -> b ... d"
+                maybe_transformed_residuals,
+                "b d ... -> b ... d",
             )
 
         residuals = self.split_fracs(residuals)
@@ -225,7 +230,9 @@ class HyperConnections(Module):
 
         residuals = rearrange(residuals, "(b s) ... d -> b ... s d", s=streams)
         maybe_transformed_residuals = rearrange(
-            maybe_transformed_residuals, "(b s) ... d -> b ... s d", s=streams
+            maybe_transformed_residuals,
+            "(b s) ... d -> b ... s d",
+            s=streams,
         )
 
         h_res = sinkhorn_log(self.H_res_logits, num_iters=self.mhc_num_iters, tau=self.mhc_tau)
@@ -240,12 +247,12 @@ class HyperConnections(Module):
 
         if getattr(self, "collect_stats", False):
             with torch.no_grad():
-                stats = dict(
-                    h_res_min=h_res.min(),
-                    h_res_row_sum=h_res.sum(dim=-1).mean(),
-                    h_res_col_sum=h_res.sum(dim=-2).mean(),
-                    h_pre_min=h_pre.min(),
-                )
+                stats = {
+                    "h_res_min": h_res.min(),
+                    "h_res_row_sum": h_res.sum(dim=-1).mean(),
+                    "h_res_col_sum": h_res.sum(dim=-2).mean(),
+                    "h_pre_min": h_pre.min(),
+                }
                 if h_post is not None:
                     stats["h_post_min"] = h_post.min()
                 self.last_stats = {k: v.detach() for k, v in stats.items()}
@@ -266,7 +273,7 @@ class HyperConnections(Module):
         if self.channel_first:
             residuals_out = rearrange(residuals_out, "b ... d -> b d ...")
 
-        return branch_input, residuals_out, dict(beta=h_post)
+        return branch_input, residuals_out, {"beta": h_post}
 
     def depth_connection(self, branch_output, residuals, *, beta):
         assert self.add_branch_out_to_residual
@@ -300,9 +307,7 @@ class HyperConnections(Module):
 
             branch_output = branch(branch_input, *args, **kwargs)
 
-            residual = add_residual(branch_output)
-
-            return residual
+            return add_residual(branch_output)
 
         return forward_and_add_residual
 
@@ -329,8 +334,8 @@ class HyperConnections(Module):
 
 if __name__ == "__main__":
     HyperConnections.get_expand_reduce_stream_functions = staticmethod(
-        get_expand_reduce_stream_functions
+        get_expand_reduce_stream_functions,
     )
     HyperConnections.get_init_and_expand_reduce_stream_functions = staticmethod(
-        get_init_and_expand_reduce_stream_functions
+        get_init_and_expand_reduce_stream_functions,
     )

@@ -1,5 +1,4 @@
-"""
-Dataclass adapter example.
+"""Dataclass adapter example.
 
 Demonstrates using DataclassAdapter with a nested dataclass config.
 Run from the repo root:
@@ -54,7 +53,7 @@ def fake_train(config: TrainConfig) -> TrainMetrics:
     return TrainMetrics(val_accuracy=accuracy, train_loss=loss)
 
 
-def main():
+def main() -> None:
     base_config = TrainConfig()
     adapter = DataclassAdapter(seed_field="experiment.seed")
 

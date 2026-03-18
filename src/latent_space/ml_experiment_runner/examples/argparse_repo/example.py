@@ -1,5 +1,4 @@
-"""
-Argparse adapter example.
+"""Argparse adapter example.
 
 Demonstrates a custom ConfigAdapter that converts a dataclass config
 to an argparse.Namespace before passing it to train_fn.
@@ -60,7 +59,7 @@ def fake_train(args: argparse.Namespace) -> Metrics:
     return Metrics(final_loss=loss, best_accuracy=acc)
 
 
-def main():
+def main() -> None:
     adapter = ArgparseAdapter()
 
     experiments = [

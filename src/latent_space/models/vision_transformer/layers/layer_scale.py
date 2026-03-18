@@ -3,7 +3,6 @@
 # This software may be used and distributed in accordance with
 # the terms of the DINOv3 License Agreement.
 
-from typing import Union
 
 import torch
 from torch import Tensor, nn
@@ -13,7 +12,7 @@ class LayerScale(nn.Module):
     def __init__(
         self,
         dim: int,
-        init_values: Union[float, Tensor] = 1e-5,
+        init_values: float | Tensor = 1e-5,
         inplace: bool = False,
         device=None,
     ) -> None:
@@ -22,7 +21,7 @@ class LayerScale(nn.Module):
         self.gamma = nn.Parameter(torch.empty(dim, device=device))
         self.init_values = init_values
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         nn.init.constant_(self.gamma, self.init_values)
 
     def forward(self, x: Tensor) -> Tensor:

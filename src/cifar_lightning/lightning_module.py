@@ -3,10 +3,10 @@ import math
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix, silhouette_samples, silhouette_score
 from sklearn.neighbors import NearestNeighbors
+from torch import nn
 
 from latent_space.loss.circle_loss import CircleLoss, convert_label_to_similarity
 from latent_space.loss.koleo_loss import KoLeoLoss
@@ -16,7 +16,7 @@ from .config import Config
 
 
 class VisionTransformerModule(pl.LightningModule):
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
         super().__init__()
         self.save_hyperparameters()
 
@@ -41,7 +41,8 @@ class VisionTransformerModule(pl.LightningModule):
                 use_mhc=self.config.model.use_mhc,
             )
         else:
-            raise ValueError(f"Unsupported model_name: {self.config.model.model_name}")
+            msg = f"Unsupported model_name: {self.config.model.model_name}"
+            raise ValueError(msg)
 
         self.model.init_weights()
 
@@ -53,15 +54,11 @@ class VisionTransformerModule(pl.LightningModule):
         self.val_acc = []
 
     def forward_head(self, x):
-        """
-        Forward pass through only the head of the model.
-        """
+        """Forward pass through only the head of the model."""
         return self.model.head(x)
 
     def forward_cls(self, x):
-        """
-        Forward pass through the model up to the feature extraction.
-        """
+        """Forward pass through the model up to the feature extraction."""
         return self.model.forward_cls(x)
 
     def forward(self, x):
@@ -79,7 +76,7 @@ class VisionTransformerModule(pl.LightningModule):
                         "start_epoch": int(item.start_epoch),
                         "warmup_epochs": int(item.warmup_epochs),
                         "fn": nn.CrossEntropyLoss(),
-                    }
+                    },
                 )
             elif item.name == "circle":
                 items.append(
@@ -89,7 +86,7 @@ class VisionTransformerModule(pl.LightningModule):
                         "start_epoch": int(item.start_epoch),
                         "warmup_epochs": int(item.warmup_epochs),
                         "fn": CircleLoss(m=item.circle_m, gamma=item.circle_gamma),
-                    }
+                    },
                 )
             elif item.name == "koleo":
                 items.append(
@@ -99,10 +96,11 @@ class VisionTransformerModule(pl.LightningModule):
                         "start_epoch": int(item.start_epoch),
                         "warmup_epochs": int(item.warmup_epochs),
                         "fn": KoLeoLoss(),
-                    }
+                    },
                 )
             else:
-                raise ValueError(f"Unknown loss name: {item.name}")
+                msg = f"Unknown loss name: {item.name}"
+                raise ValueError(msg)
         return items
 
     def compute_losses(self, norm_emb, logits, labels):
@@ -185,7 +183,7 @@ class VisionTransformerModule(pl.LightningModule):
 
         return {"test_loss": loss, "test_acc": acc}
 
-    def on_test_epoch_end(self):
+    def on_test_epoch_end(self) -> None:
         embeddings, labels = self.get_embeddings(self.trainer.datamodule.test_dataloader())
 
         # Compute metrics
@@ -206,7 +204,8 @@ class VisionTransformerModule(pl.LightningModule):
 
         num_batches = self.config.model.num_batches
         if num_batches is None:
-            raise ValueError("TrainingConfig.num_batches must be set before training.")
+            msg = "TrainingConfig.num_batches must be set before training."
+            raise ValueError(msg)
 
         n_iters = num_batches * self.config.training.epochs
         warmup_steps = int(self.config.training.frac_warmup * n_iters)
@@ -249,7 +248,8 @@ class VisionTransformerModule(pl.LightningModule):
                 },
             }
         else:
-            raise ValueError(f"Unknown scheduler name: {self.config.training.scheduler_name}")
+            msg = f"Unknown scheduler name: {self.config.training.scheduler_name}"
+            raise ValueError(msg)
 
         return {
             "optimizer": optimizer,
@@ -260,10 +260,10 @@ class VisionTransformerModule(pl.LightningModule):
             },
         }
 
-    def on_before_optimizer_step(self, optimizer):
+    def on_before_optimizer_step(self, optimizer) -> None:
         pass
 
-    def _log_grad_norms_per_loss(self, loss_dict):
+    def _log_grad_norms_per_loss(self, loss_dict) -> None:
         params = [p for p in self.parameters() if p.requires_grad]
         if not params:
             return
@@ -330,11 +330,14 @@ class VisionTransformerModule(pl.LightningModule):
         y = np.asarray(y_true)
 
         if X.ndim != 2:
-            raise ValueError("embeddings must be a 2D array (n_samples, n_dims).")
+            msg = "embeddings must be a 2D array (n_samples, n_dims)."
+            raise ValueError(msg)
         if len(y) != X.shape[0]:
-            raise ValueError("y_true length must match number of rows in embeddings.")
+            msg = "y_true length must match number of rows in embeddings."
+            raise ValueError(msg)
         if k < 1:
-            raise ValueError("k must be >= 1.")
+            msg = "k must be >= 1."
+            raise ValueError(msg)
 
         # +1 because the nearest neighbor of a point is itself (distance 0)
         nn = NearestNeighbors(n_neighbors=min(k + 1, X.shape[0]), metric=metric)
@@ -347,7 +350,8 @@ class VisionTransformerModule(pl.LightningModule):
             # small dataset edge case: reduce k
             k_eff = neigh_idx.shape[1]
             if k_eff == 0:
-                raise ValueError("Not enough samples to compute neighbors (need at least 2).")
+                msg = "Not enough samples to compute neighbors (need at least 2)."
+                raise ValueError(msg)
         else:
             k_eff = k
 
@@ -397,19 +401,21 @@ class VisionTransformerModule(pl.LightningModule):
         return cm, label_list, per_class
 
     def silhouette_score_by_class(self, embeddings, y_true, metric="euclidean"):
-        """
-        Silhouette analysis using class labels as cluster IDs.
-        """
+        """Silhouette analysis using class labels as cluster IDs."""
         X = np.asarray(embeddings)
         y = np.asarray(y_true)
 
         unique, counts = np.unique(y, return_counts=True)
         if unique.shape[0] < 2:
-            raise ValueError("Silhouette requires at least 2 distinct classes.")
+            msg = "Silhouette requires at least 2 distinct classes."
+            raise ValueError(msg)
         if np.any(counts < 2):
             bad = unique[counts < 2]
-            raise ValueError(
+            msg = (
                 f"Silhouette requires at least 2 samples per class. Classes with <2 samples: {bad}"
+            )
+            raise ValueError(
+                msg,
             )
 
         per_sample = silhouette_samples(X, y, metric=metric)

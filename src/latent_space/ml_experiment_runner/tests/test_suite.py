@@ -53,7 +53,8 @@ def seed_aware_train(config: Config) -> Metrics:
 
 
 def always_failing_train(config: Config) -> Metrics:
-    raise RuntimeError("Intentional failure")
+    msg = "Intentional failure"
+    raise RuntimeError(msg)
 
 
 def sometimes_failing_train(call_counter: list[int]):
@@ -62,7 +63,8 @@ def sometimes_failing_train(call_counter: list[int]):
     def _train(config: Config) -> Metrics:
         call_counter.append(1)
         if len(call_counter) == 1:
-            raise RuntimeError("First call fails")
+            msg = "First call fails"
+            raise RuntimeError(msg)
         return Metrics(accuracy=0.8, loss=0.2)
 
     return _train
@@ -73,7 +75,7 @@ def sometimes_failing_train(call_counter: list[int]):
 # ---------------------------------------------------------------------------
 
 
-def test_runner_basic():
+def test_runner_basic() -> None:
     exp = Experiment(
         name="test",
         config=Config(),
@@ -89,7 +91,7 @@ def test_runner_basic():
     assert agg["accuracy"].n_seeds == 3
 
 
-def test_runner_seed_injection():
+def test_runner_seed_injection() -> None:
     exp = Experiment(
         name="seed_test",
         config=Config(),
@@ -102,7 +104,7 @@ def test_runner_seed_injection():
     assert agg["accuracy"].mean == pytest.approx(0.2)
 
 
-def test_runner_all_seeds_fail():
+def test_runner_all_seeds_fail() -> None:
     exp = Experiment(
         name="fail_test",
         config=Config(),
@@ -114,7 +116,7 @@ def test_runner_all_seeds_fail():
         ExperimentRunner().run(exp)
 
 
-def test_runner_insufficient_seeds():
+def test_runner_insufficient_seeds() -> None:
     counter: list[int] = []
     exp = Experiment(
         name="partial_fail",
@@ -133,7 +135,7 @@ def test_runner_insufficient_seeds():
 # ---------------------------------------------------------------------------
 
 
-def test_suite_result_keys():
+def test_suite_result_keys() -> None:
     experiments = [
         Experiment(
             name="exp_A",
@@ -157,7 +159,7 @@ def test_suite_result_keys():
     assert result.experiments == ["exp_A", "exp_B"]
 
 
-def test_suite_output_markdown(tmp_path):
+def test_suite_output_markdown(tmp_path) -> None:
     experiments = [
         Experiment(
             name="exp_A",
@@ -173,7 +175,7 @@ def test_suite_output_markdown(tmp_path):
         suite_name="my_suite",
     )
     suite = ExperimentSuite(experiments, runner_config=cfg)
-    result = suite.run()
+    suite.run()
 
     # Should have written a timestamped subdirectory
     subdirs = list(tmp_path.iterdir())

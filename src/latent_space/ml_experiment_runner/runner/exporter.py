@@ -84,7 +84,8 @@ class ResultExporter:
                 elif fmt == "latex":
                     self._export_latex(suite_result, output_dir)
         except Exception as exc:
-            raise ExportError(f"Export failed: {exc}") from exc
+            msg = f"Export failed: {exc}"
+            raise ExportError(msg) from exc
 
     # ------------------------------------------------------------------
     # Markdown
@@ -100,7 +101,7 @@ class ResultExporter:
         # Scalar table
         if scalar_metrics:
             lines.append("## Scalar Metrics\n")
-            headers = ["metric"] + exp_names
+            headers = ["metric", *exp_names]
             rows = []
             for path, exp_leaves in scalar_metrics.items():
                 row: dict[str, Any] = {"metric": path}
@@ -154,7 +155,7 @@ class ResultExporter:
                                     "experiment": exp,
                                     "final_mean": f"{leaf.mean[-1]:.4f}",
                                     "final_std": f"{leaf.std[-1]:.4f}",  # type: ignore[index]
-                                }
+                                },
                             )
                     lines.append(render_markdown_table(headers, rows))
                 else:  # summary
@@ -164,7 +165,8 @@ class ResultExporter:
                         leaf = exp_leaves.get(exp)
                         if leaf and isinstance(leaf.mean, list) and leaf.mean:
                             direction = self.cfg.metric_directions.get(
-                                path, self.cfg.default_metric_direction
+                                path,
+                                self.cfg.default_metric_direction,
                             )
                             best = (
                                 max(leaf.mean)
@@ -177,7 +179,7 @@ class ResultExporter:
                                     "first": f"{leaf.mean[0]:.4f}",
                                     "last": f"{leaf.mean[-1]:.4f}",
                                     "best": f"{best:.4f}",
-                                }
+                                },
                             )
                     lines.append(render_markdown_table(headers, rows))
                 lines.append("")
@@ -201,7 +203,7 @@ class ResultExporter:
         ws.title = "Scalar Metrics"
         highlight = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
-        header_row = ["metric"] + exp_names
+        header_row = ["metric", *exp_names]
         ws.append(header_row)
 
         for path, exp_leaves in scalar_metrics.items():
@@ -257,7 +259,7 @@ class ResultExporter:
         # Scalar table
         if scalar_metrics:
             col_spec = "l" + "c" * len(exp_names)
-            header = " & ".join(["Metric"] + exp_names) + r" \\"
+            header = " & ".join(["Metric", *exp_names]) + r" \\"
             rows_lines: list[str] = []
             for path, exp_leaves in scalar_metrics.items():
                 best_name = _best_exp(path, exp_leaves, self.cfg)
@@ -292,7 +294,7 @@ class ResultExporter:
             sub_headers = []
             for exp in exp_names:
                 sub_headers += [f"{exp} mean", f"{exp} std"]
-            header = " & ".join(["Step"] + sub_headers) + r" \\"
+            header = " & ".join(["Step", *sub_headers]) + r" \\"
 
             max_len = max(
                 len(leaf.mean)  # type: ignore[arg-type]
@@ -328,5 +330,6 @@ class ResultExporter:
             blocks.append(table)
 
         (output_dir / f"{self.cfg.suite_name}.tex").write_text(
-            "\n\n".join(blocks) + "\n", encoding="utf-8"
+            "\n\n".join(blocks) + "\n",
+            encoding="utf-8",
         )

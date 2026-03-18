@@ -1,16 +1,14 @@
-"""
-Implementation of TinyLoRA from:
+"""Implementation of TinyLoRA from:
 Morris, J. X., Mireshghallah, N., Ibrahim, M., & Mahloujifar, S. (2026).
 "Learning to Reason in 13 Parameters."
 arXiv preprint arXiv:2602.04118
-https://arxiv.org/abs/2602.04118
+https://arxiv.org/abs/2602.04118.
 """
+
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch
-import torch.nn as nn
-from typing import List
+from torch import nn
+
 
 class TinyLoRALinear(nn.Module):
     def __init__(
@@ -18,16 +16,16 @@ class TinyLoRALinear(nn.Module):
         base_layer: nn.Linear,
         r: int = 2,
         u: int = 1,
-        shared_v: nn.Parameter = None
-    ):
-        """
-        TinyLoRA drop-in replacement for nn.Linear.
+        shared_v: nn.Parameter = None,
+    ) -> None:
+        """TinyLoRA drop-in replacement for nn.Linear.
 
         Args:
             base_layer: The original pre-trained nn.Linear layer.
             r: The frozen rank for the truncated SVD. The paper recommends r=2.
             u: The trainable projection dimension.
             shared_v: An optional shared parameter vector to enable weight tying across layers.
+
         """
         super().__init__()
         self.in_features = base_layer.in_features
@@ -55,14 +53,14 @@ class TinyLoRALinear(nn.Module):
             Vh_r = Vh[:r, :]
 
         # Register U, Sigma, and V^T as frozen buffers
-        self.register_buffer('U', U_r)
-        self.register_buffer('Sigma', torch.diag(S_r))
-        self.register_buffer('Vh', Vh_r)
+        self.register_buffer("U", U_r)
+        self.register_buffer("Sigma", torch.diag(S_r))
+        self.register_buffer("Vh", Vh_r)
 
         # Initialize fixed random tensor P of shape (u, r, r)
         # Using a normal distribution to initialize the random matrices
         P = torch.randn(u, r, r)
-        self.register_buffer('P', P)
+        self.register_buffer("P", P)
 
         # Initialize the trainable vector v
         if shared_v is not None:
@@ -84,7 +82,7 @@ class TinyLoRALinear(nn.Module):
         x_V = F.linear(x, self.Vh)
 
         # Step B: Compute the combined r x r matrix R = \sum v_i P_i
-        R = torch.einsum('i,ijk->jk', self.v, self.P)
+        R = torch.einsum("i,ijk->jk", self.v, self.P)
 
         # Step C: Multiply by R^T
         x_VR = F.linear(x_V, R)
@@ -100,13 +98,12 @@ class TinyLoRALinear(nn.Module):
 
 def apply_tiny_lora(
     model: nn.Module,
-    target_modules: List[str],
+    target_modules: list[str],
     r: int = 2,
     u: int = 1,
-    tie_all_layers: bool = True
+    tie_all_layers: bool = True,
 ) -> nn.Module:
-    """
-    Replace specified linear layers in any PyTorch model with TinyLoRALinear.
+    """Replace specified linear layers in any PyTorch model with TinyLoRALinear.
 
     Args:
         model: The base PyTorch model.
@@ -116,6 +113,7 @@ def apply_tiny_lora(
         u: The dimension of the trainable vector v.
         tie_all_layers: If True, all adapted modules share a single trainable `v`
                         parameter, minimizing total parameter count.
+
     """
     shared_v = nn.Parameter(torch.zeros(u)) if tie_all_layers else None
 
@@ -134,10 +132,7 @@ def apply_tiny_lora(
         child_name = name.split(".")[-1]
 
         # Retrieve the parent module
-        if parent_path == "":
-            parent = model
-        else:
-            parent = model.get_submodule(parent_path)
+        parent = model if parent_path == "" else model.get_submodule(parent_path)
 
         target_layer = getattr(parent, child_name)
 
@@ -161,21 +156,27 @@ def apply_tiny_lora(
 
     return model
 
+
 if __name__ == "__main__":
     from transformers import AutoModelForCausalLM
     # curl -LsSf https://hf.co/cli/install.sh | bash
     # uvx hf auth login
 
     model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-3B-Instruct")
-    
+
     # Freeze all parameters in the model
     for param in model.parameters():
         param.requires_grad = False
 
     # Define target modules
     targets = [
-        "q_proj", "k_proj", "v_proj", "o_proj",
-        "gate_proj", "up_proj", "down_proj"
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
     ]
 
     # Apply TinyLoRA

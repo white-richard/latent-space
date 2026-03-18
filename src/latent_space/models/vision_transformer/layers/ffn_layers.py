@@ -3,19 +3,18 @@
 # This software may be used and distributed in accordance with
 # the terms of the DINOv3 License Agreement.
 
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 import torch.nn.functional as F
+from dinov3.utils import cat_keep_shapes, uncat_with_shapes
 from torch import Tensor, nn
 
-from dinov3.utils import cat_keep_shapes, uncat_with_shapes
 
-
-class ListForwardMixin(object):
+class ListForwardMixin:
     def forward(self, x: Tensor):
         raise NotImplementedError
 
-    def forward_list(self, x_list: List[Tensor]) -> List[Tensor]:
+    def forward_list(self, x_list: list[Tensor]) -> list[Tensor]:
         x_flat, shapes, num_tokens = cat_keep_shapes(x_list)
         x_flat = self.forward(x_flat)
         return uncat_with_shapes(x_flat, shapes, num_tokens)
@@ -25,8 +24,8 @@ class Mlp(nn.Module, ListForwardMixin):
     def __init__(
         self,
         in_features: int,
-        hidden_features: Optional[int] = None,
-        out_features: Optional[int] = None,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
         act_layer: Callable[..., nn.Module] = nn.GELU,
         drop: float = 0.0,
         bias: bool = True,
@@ -45,17 +44,16 @@ class Mlp(nn.Module, ListForwardMixin):
         x = self.act(x)
         x = self.drop(x)
         x = self.fc2(x)
-        x = self.drop(x)
-        return x
+        return self.drop(x)
 
 
 class SwiGLUFFN(nn.Module, ListForwardMixin):
     def __init__(
         self,
         in_features: int,
-        hidden_features: Optional[int] = None,
-        out_features: Optional[int] = None,
-        act_layer: Optional[Callable[..., nn.Module]] = None,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: Callable[..., nn.Module] | None = None,
         drop: float = 0.0,
         bias: bool = True,
         align_to: int = 8,

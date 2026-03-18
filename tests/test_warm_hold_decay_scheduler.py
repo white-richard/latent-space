@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import pytest
@@ -42,9 +43,8 @@ def make_sched(
 
 
 @pytest.mark.parametrize("decay_type", ["linear", "cosine", "square", "mirror_cosine", "1-sqrt"])
-def test_warmup_shape_and_bounds(decay_type):
-    """
-    Warmup should:
+def test_warmup_shape_and_bounds(decay_type) -> None:
+    """Warmup should:
       - start near 1/init_div_factor at step=0
       - be non-decreasing through warmup
       - end at ~1.0 at step=n_warmup
@@ -74,14 +74,14 @@ def test_warmup_shape_and_bounds(decay_type):
     assert abs(m0 - (1.0 / init_div)) < 1e-12
 
     # warmup should be non-decreasing
-    vals = [sched._multiplier(s) for s in range(0, n_warmup)]
-    assert all(v2 >= v1 - 1e-12 for v1, v2 in zip(vals, vals[1:]))
+    vals = [sched._multiplier(s) for s in range(n_warmup)]
+    assert all(v2 >= v1 - 1e-12 for v1, v2 in itertools.pairwise(vals))
 
     # at step==n_warmup warmup is done => hold (1.0)
     assert abs(sched._multiplier(n_warmup) - 1.0) < 1e-12
 
 
-def test_hold_is_constant_until_cooldown():
+def test_hold_is_constant_until_cooldown() -> None:
     base_lr = 1e-3
     n_iters = 200
     frac_warmup = 0.1
@@ -103,7 +103,7 @@ def test_hold_is_constant_until_cooldown():
         assert abs(sched._multiplier(s) - 1.0) < 1e-12
 
 
-def test_auto_trigger_cooldown_when_enabled():
+def test_auto_trigger_cooldown_when_enabled() -> None:
     base_lr = 1e-3
     n_iters = 500
     frac_decay = 0.2
@@ -134,7 +134,7 @@ def test_auto_trigger_cooldown_when_enabled():
     assert abs(sched._multiplier(sched.cooldown_end_step) - sched.final_lr_factor) < 1e-12
 
 
-def test_auto_trigger_not_started_when_disabled():
+def test_auto_trigger_not_started_when_disabled() -> None:
     base_lr = 1e-3
     n_iters = 500
     frac_decay = 0.3
@@ -158,7 +158,7 @@ def test_auto_trigger_not_started_when_disabled():
     assert sched.cooldown_start_step == step
 
 
-def test_auto_trigger_requires_frac_decay():
+def test_auto_trigger_requires_frac_decay() -> None:
     opt = make_optimizer()
     with pytest.raises(ValueError, match="auto_trigger_cooldown requires frac_decay to be set"):
         make_sched(
@@ -173,14 +173,13 @@ def test_auto_trigger_requires_frac_decay():
 
 
 @pytest.mark.parametrize("decay_type", ["linear", "cosine", "square", "mirror_cosine", "1-sqrt"])
-def test_cooldown_trigger_explicit_step_decays_over_frac_decay(decay_type):
-    """
-    If frac_decay is set, triggering cooldown at step S should set:
+def test_cooldown_trigger_explicit_step_decays_over_frac_decay(decay_type) -> None:
+    """If frac_decay is set, triggering cooldown at step S should set:
       cooldown_start_step = S
       cooldown_end_step = min(S + ceil(frac_decay * S), n_iterations)
     and multiplier should:
       - be 1.0 at step S (start of cooldown)
-      - be final_lr_factor at step >= cooldown_end_step
+      - be final_lr_factor at step >= cooldown_end_step.
     """
     base_lr = 1e-3
     n_iters = 1000
@@ -202,7 +201,7 @@ def test_cooldown_trigger_explicit_step_decays_over_frac_decay(decay_type):
     sched.trigger_cooldown(step=S)
 
     assert sched.cooldown_start_step == S
-    expected_len = max(1, int(math.ceil(frac_decay * S)))
+    expected_len = max(1, math.ceil(frac_decay * S))
     expected_end = min(S + expected_len, n_iters)
     assert sched.cooldown_end_step == expected_end
 
@@ -218,7 +217,7 @@ def test_cooldown_trigger_explicit_step_decays_over_frac_decay(decay_type):
     assert abs(sched._multiplier(expected_end + 10) - final_factor) < 1e-12
 
 
-def test_frac_decay_none_decays_to_end_of_training():
+def test_frac_decay_none_decays_to_end_of_training() -> None:
     base_lr = 1e-3
     n_iters = 1000
     final_factor = 0.1
@@ -242,7 +241,7 @@ def test_frac_decay_none_decays_to_end_of_training():
     assert abs(sched._multiplier(n_iters) - final_factor) < 1e-12
 
 
-def test_step_ge_n_iterations_clamps_to_final():
+def test_step_ge_n_iterations_clamps_to_final() -> None:
     base_lr = 1e-3
     n_iters = 10
     final_factor = 0.1
@@ -267,11 +266,10 @@ def test_step_ge_n_iterations_clamps_to_final():
 
 
 @pytest.mark.parametrize("decay_type", ["linear", "cosine", "square", "mirror_cosine", "1-sqrt"])
-def test_decay_is_nonincreasing_during_cooldown(decay_type):
-    """
-    During cooldown, multiplier should be non-increasing (monotone down).
+def test_decay_is_nonincreasing_during_cooldown(decay_type) -> None:
+    """During cooldown, multiplier should be non-increasing (monotone down).
     (Mirror cosine can overshoot in some constructions; your implementation is intended to remain in [0,1]
-     but we still only assert non-increasing for your current formula.)
+     but we still only assert non-increasing for your current formula.).
     """
     base_lr = 1e-3
     n_iters = 200
@@ -291,16 +289,15 @@ def test_decay_is_nonincreasing_during_cooldown(decay_type):
     sched.trigger_cooldown(step=S)
 
     vals = [sched._multiplier(s) for s in range(S, n_iters + 1)]
-    assert all(v2 <= v1 + 1e-12 for v1, v2 in zip(vals, vals[1:]))
+    assert all(v2 <= v1 + 1e-12 for v1, v2 in itertools.pairwise(vals))
     assert abs(vals[-1] - final_factor) < 1e-12
 
 
 @pytest.mark.xfail(
-    reason="Current exp implementation depends on final_lr_factor and is double-scaled; fix exp unit curve."
+    reason="Current exp implementation depends on final_lr_factor and is double-scaled; fix exp unit curve.",
 )
-def test_exp_decay_reaches_final_factor_at_end():
-    """
-    This is the regression test that will fail until 'exp' is fixed to be compatible
+def test_exp_decay_reaches_final_factor_at_end() -> None:
+    """This is the regression test that will fail until 'exp' is fixed to be compatible
     with unit-curve + scaling (or handled as a special case).
     """
     base_lr = 1e-3
@@ -327,7 +324,7 @@ def test_exp_decay_reaches_final_factor_at_end():
 # ----------------------------
 
 
-def test_state_dict_roundtrip_preserves_cooldown_state():
+def test_state_dict_roundtrip_preserves_cooldown_state() -> None:
     base_lr = 1e-3
 
     opt1 = make_optimizer(lr=base_lr)
@@ -359,10 +356,8 @@ def test_state_dict_roundtrip_preserves_cooldown_state():
     assert sched2.last_epoch == sched1.last_epoch
 
 
-def test_resume_with_last_epoch_does_not_require_initial_lr_preexisting():
-    """
-    Should not raise KeyError because WHDScheduler sets param_group['initial_lr'] automatically.
-    """
+def test_resume_with_last_epoch_does_not_require_initial_lr_preexisting() -> None:
+    """Should not raise KeyError because WHDScheduler sets param_group['initial_lr'] automatically."""
     base_lr = 1e-3
     opt = make_optimizer(lr=base_lr)
 
@@ -380,7 +375,7 @@ def test_resume_with_last_epoch_does_not_require_initial_lr_preexisting():
     assert isinstance(sched, WHDScheduler)
 
 
-def test_start_cooldown_immediately_sets_some_start_and_end():
+def test_start_cooldown_immediately_sets_some_start_and_end() -> None:
     base_lr = 1e-3
     opt = make_optimizer(lr=base_lr)
 
@@ -406,9 +401,8 @@ def test_start_cooldown_immediately_sets_some_start_and_end():
 # ----------------------------
 
 
-def test_integration_step_runs_and_lr_changes_when_cooldown_triggered():
-    """
-    Only a smoke test: ensures scheduler.step() runs and LR eventually decreases after trigger.
+def test_integration_step_runs_and_lr_changes_when_cooldown_triggered() -> None:
+    """Only a smoke test: ensures scheduler.step() runs and LR eventually decreases after trigger.
     Does NOT assert the exact first-step value (PyTorch indexing/order dependent).
     """
     base_lr = 1e-3

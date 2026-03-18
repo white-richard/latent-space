@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pacmap
 
 
-def visualize_embedding(X, y, save_path="./tmp/pacmap_embeddings.png"):
+def visualize_embedding(X, y, save_path="./tmp/pacmap_embeddings.png") -> None:
     embedding = pacmap.PaCMAP(n_components=2, n_neighbors=10, MN_ratio=0.5, FP_ratio=2.0)
 
     # fit the data (The index of transformed data corresponds to the index of the original data)

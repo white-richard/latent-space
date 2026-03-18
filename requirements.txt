@@ -22,3 +22,5 @@ rich
 tensorboard
 # For DINOv3
 # -r repos/dinov3/requirements.txt
+dvc 
+dvc-ssh

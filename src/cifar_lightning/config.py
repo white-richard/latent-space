@@ -95,7 +95,10 @@ class Config:
         else:
             expected = 100 if self.data.use_cifar100 else 10
             if self.model.num_classes != expected:
-                raise ValueError(
+                msg = (
                     f"`model.num_classes` ({self.model.num_classes}) is inconsistent with "
                     f"`data.use_cifar100` ({self.data.use_cifar100}); expected {expected}"
+                )
+                raise ValueError(
+                    msg,
                 )

@@ -1,7 +1,7 @@
 import pytorch_lightning as pl
 import torchvision
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from .config import DataConfig
 
@@ -9,7 +9,7 @@ from .config import DataConfig
 class CIFARDataModule(pl.LightningDataModule):
     """PyTorch Lightning DataModule for CIFAR dataset."""
 
-    def __init__(self, config: DataConfig):
+    def __init__(self, config: DataConfig) -> None:
         super().__init__()
         self.config = config
 
@@ -25,13 +25,15 @@ class CIFARDataModule(pl.LightningDataModule):
         self.val_dataset = None
         self.test_dataset = None
 
-    def setup(self, stage: str = None):
+    def setup(self, stage: str | None = None) -> None:
         """Setup datasets for each stage."""
-
         train_transform = transforms.Compose(
             [
                 transforms.RandomResizedCrop(
-                    32, scale=(self.config.scale, 1.0), ratio=(1.0, 1.0), antialias=True
+                    32,
+                    scale=(self.config.scale, 1.0),
+                    ratio=(1.0, 1.0),
+                    antialias=True,
                 ),
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandAugment(),
@@ -39,14 +41,14 @@ class CIFARDataModule(pl.LightningDataModule):
                 transforms.ToTensor(),
                 transforms.Normalize(self.cifar_mean, self.cifar_std),
                 transforms.RandomErasing(),
-            ]
+            ],
         )
 
         test_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
                 transforms.Normalize(self.cifar_mean, self.cifar_std),
-            ]
+            ],
         )
         use_cifar100 = self.config.use_cifar100
 
