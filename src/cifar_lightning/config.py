@@ -8,7 +8,9 @@ class ExperimentConfig:
 
     output_dir: str = "./experiments"
     seed: int = 42  # -1 to disable
+
     debug_mode: bool = False
+    overfit_batches: int | None = None
 
     # Visualization parameters
     save_embeddings: bool = True
@@ -68,7 +70,7 @@ class LossItemConfig:
     warmup_epochs: int = 0
     # Circle loss parameters
     circle_m: float = 0.25
-    circle_gamma: float = 256.0
+    circle_gamma: float = 64.0
 
 
 @dataclass

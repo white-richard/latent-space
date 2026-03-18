@@ -50,9 +50,10 @@ def experiment_metric_cifar100():
             epochs=320,
             lr=0.001,
             weight_decay=0.05,
-            clip_norm=None,
+            clip_norm=-3.0,
             use_bfloat16=True,
             scheduler_name="warmup_hold_decay",
+            frac_warmup=0.2,
             # scheduler_name="cosine",
             start_cooldown_immediately=False,  # Use on a ckpt when you want to start cooldown
             auto_trigger_cooldown=True,
@@ -61,21 +62,22 @@ def experiment_metric_cifar100():
             experiment_name=experiment_name,
             seed=42,
             debug_mode=False,
+            overfit_batches=1,
             output_dir=output_dir,
         ),
         loss=LossConfig(
             losses=[
                 LossItemConfig(
                     name="circle",
-                    weight=0.025,
-                    start_epoch=100,
-                    warmup_epochs=20,
+                    weight=1.0,
+                    start_epoch=75,
+                    warmup_epochs=50,
                 ),
                 LossItemConfig(
                     name="koleo",
-                    weight=1.0,
-                    warmup_epochs=20,
-                    start_epoch=100
+                    start_epoch=150,
+                    warmup_epochs=50,
+                    weight=0.1,
                 ),
                 LossItemConfig(
                     name="cross_entropy",

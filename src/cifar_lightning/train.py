@@ -138,6 +138,7 @@ def train(config: Config):
         if config.training.clip_norm and config.training.clip_norm > 0
         else None,
         fast_dev_run=config.experiment.debug_mode,
+        overfit_batches=config.experiment.overfit_batches
     )
 
     # Train the model

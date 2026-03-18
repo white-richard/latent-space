@@ -105,7 +105,7 @@ class VisionTransformerModule(pl.LightningModule):
                 raise ValueError(f"Unknown loss name: {item.name}")
         return items
 
-    def compute_losses(self, embeddings, logits, labels):
+    def compute_losses(self, norm_emb, logits, labels):
         losses = {}
         for item in self.loss_items:
             name = item["name"]
@@ -114,19 +114,20 @@ class VisionTransformerModule(pl.LightningModule):
             if name == "cross_entropy":
                 losses[name] = item["fn"](logits, labels)
             elif name == "circle":
-                normed = F.normalize(embeddings, dim=1)
+                normed = F.normalize(norm_emb, dim=1)
                 sp, sn = convert_label_to_similarity(normed, labels)
                 losses[name] = item["fn"](sp, sn)
             elif name == "koleo":
-                losses[name] = item["fn"](embeddings)
+                losses[name] = item["fn"](norm_emb)
         return losses
 
     def training_step(self, batch, batch_idx):
         """Training step."""
         X, y = batch
         embeddings = self.forward_cls(X)
+        normed_emb = F.normalize(embeddings, dim=1)
         output = self.forward_head(embeddings)
-        loss_dict = self.compute_losses(embeddings, output, y)
+        loss_dict = self.compute_losses(normed_emb, output, y)
         loss = sum(self._loss_weight(name) * val for name, val in loss_dict.items())
 
         # Calculate accuracy
