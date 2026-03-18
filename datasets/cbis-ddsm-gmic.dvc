@@ -1,0 +1,6 @@
+outs:
+- md5: 899b65be3ff40c723784782ce99831d1.dir
+  size: 1375206377
+  nfiles: 3109
+  hash: md5
+  path: cbis-ddsm-gmic

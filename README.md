@@ -112,7 +112,84 @@ Contributions, ideas, and suggestions are welcome. If you plan to contribute:
 5. Open a pull request against the main branch, describing:
     - What you changed
     - Why you changed it
-    - Any relevant context or trade-offs
+    - Any relevant context or trade-off
+
+# Dataset Management (DVC)
+
+This repo uses [DVC](https://dvc.org/) to version and sync large assets (datasets, model weights, feature points) across machines. Actual files are **not stored in Git** — only lightweight `.dvc` pointer files are committed. The real data lives on my remote SSH servers (not accessible publically).
+
+## First-time setup on a new machine
+
+### Install DVC
+
+```bash
+pip install dvc dvc-ssh
+```
+
+### Configure your remotes
+
+```bash
+# Add each remote server
+dvc remote add --local your-server ssh://your-server/path/to/latent-space/datasets
+
+# Set your SSH key for each remote
+dvc remote modify --local your-server keyfile ~/.ssh/id_ed25519
+# dvc remote modify --local your-server keyfile ~/.ssh/id_ed25519
+
+# Set the default remote
+dvc remote default --local your-server
+```
+
+## Pulling datasets
+
+Pull everything from the default remote:
+
+```bash
+dvc pull
+```
+
+Pull a specific dataset only:
+
+```bash
+dvc pull datasets/dataset1.dvc
+```
+
+Pull from a specific remote:
+
+```bash
+dvc pull datasets/dataset1.dvc -r your-server
+```
+
+## Adding a new dataset
+
+```bash
+# Track it with DVC
+dvc add datasets/new-dataset/
+
+# Commit the pointer file to Git
+git add datasets/new-dataset.dvc .gitignore
+git commit -m "track new-dataset with dvc"
+
+# Push the actual files to the remote
+dvc push datasets/new-dataset.dvc -r your-server
+```
+
+## Pushing updated files
+
+```bash
+dvc add datasets/updated-dataset/
+git add datasets/updated-dataset.dvc
+git commit -m "update dataset: describe what changed"
+dvc push datasets/updated-dataset.dvc -r your-server
+```
+
+## Checking sync status
+
+See what's out of sync between your local machine and the remote:
+
+```bash
+dvc status -c
+```
 
 ## License
 
