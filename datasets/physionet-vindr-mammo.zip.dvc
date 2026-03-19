@@ -1,0 +1,5 @@
+outs:
+- md5: 984b29a13872254fc168c9aaedcabfb2
+  size: 54411087734
+  hash: md5
+  path: physionet-vindr-mammo.zip

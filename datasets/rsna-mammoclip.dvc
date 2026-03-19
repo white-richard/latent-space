@@ -1,0 +1,6 @@
+outs:
+- md5: 90ae53ebd15a660c52c2ffa58f0777d4.dir
+  size: 113726936907
+  nfiles: 164141
+  hash: md5
+  path: rsna-mammoclip
