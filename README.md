@@ -114,76 +114,75 @@ Contributions, ideas, and suggestions are welcome. If you plan to contribute:
     - Why you changed it
     - Any relevant context or trade-off
 
-# Dataset Management (DVC)
+# DVC
 
 This repo uses [DVC](https://dvc.org/) to version and sync large assets (datasets, model weights, feature points) across machines. These are stored privately but below is an example of how to use DVC for datasets.
 
-## First-time setup on a new machine
-
-### Install DVC
-
 ```bash
-pip install dvc dvc-ssh
+uv pip install dvc dvc-ssh
 ```
 
-### Configure your remotes
+---
+
+## Preferences
+
+Recommended: Use hardlinks so the cache and working files share the same disk bytes. No copies.
 
 ```bash
-# Add each remote server
-dvc remote add --local your-server ssh://your-server/path/to/latent-space/datasets
-
-# Set your SSH key for each remote
-dvc remote modify --local your-server keyfile ~/.ssh/id_ed25519
-# dvc remote modify --local your-server keyfile ~/.ssh/id_ed25519
-
-# Set the default remote
-dvc remote default --local your-server
+dvc config cache.type "hardlink,symlink"
+dvc config cache.protected true
+dvc config core.autostage true
 ```
 
-## Pulling datasets
+---
 
-Pull everything from the default remote:
+## Configure Remotes
+
+For adding files to remote locally: 
 
 ```bash
-dvc pull
+dvc remote add -d your-server-datasets $HOME/path/to/latent-space/.dvc/cache
+dvc remote add your-server-weights $HOME/path/to/latent-space/.dvc/cache
 ```
 
-Pull a specific dataset only:
+Since storage is local, the cache is the remote -- `dvc push` becomes a no-op.
+
+For adding files to remote from another machine:
 
 ```bash
-dvc pull datasets/dataset1.dvc
+dvc remote add -d --local your-server-datasets ssh://$HOME/path/to/latent-space/.dvc/cache
+dvc remote add --local your-server-weights ssh://$HOME/path/to/latent-space/.dvc/cache
 ```
 
-Pull from a specific remote:
+---
+
+## Track Files
 
 ```bash
-dvc pull datasets/dataset1.dvc -r your-server
+dvc add model_weights/dinov3
+git add model_weights/dinov3.dvc
+git commit -m "track dinov3 with dvc"
 ```
 
-## Adding a new dataset
+Push to non-default remotes explicitly:
 
 ```bash
-# Track it with DVC
-dvc add datasets/new-dataset/
-
-# Commit the pointer file to Git
-git add datasets/new-dataset.dvc .gitignore
-git commit -m "track new-dataset with dvc"
-
-# Push the actual files to the remote
-dvc push datasets/new-dataset.dvc -r your-server
+dvc push  # pushes to default remote
+dvc push -r your-server-weights  # pushes to weights remote
+dvc push -r your-server-datasets  # pushes to datasets remote
 ```
 
-## Pushing updated files
+---
+
+## Other tips
+
+These files are read-only, unprotect them using:
 
 ```bash
-dvc add datasets/updated-dataset/
-git add datasets/updated-dataset.dvc
-git commit -m "update dataset: describe what changed"
-dvc push datasets/updated-dataset.dvc -r your-server
+dvc unprotect model_weights/dinov3
+# edit the file
+dvc add model_weights/dinov3
 ```
-
-## Checking sync status
 
 See what's out of sync between your local machine and the remote:
 

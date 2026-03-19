@@ -1,0 +1,6 @@
+outs:
+- md5: c328dbccf21ad14bd9eb7174bc53563b.dir
+  size: 95801209015
+  nfiles: 13989
+  hash: md5
+  path: cbis-ddsm

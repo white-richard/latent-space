@@ -1,0 +1,5 @@
+[core]
+    autostage = true
+[cache]
+    type = "hardlink,symlink"
+    protected = true
