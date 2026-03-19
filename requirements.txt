@@ -10,9 +10,9 @@ tqdm
 jupyter
 ipykernel
 ollama
-python-lsp-server
 pacmap
 timm
+python-lsp-server
 pytest
 einops
 numba>=0.57
@@ -20,7 +20,5 @@ llvmlite>=0.40
 lightning
 rich
 tensorboard
-# For DINOv3
-# -r repos/dinov3/requirements.txt
-dvc 
+dvc
 dvc-ssh

@@ -24,9 +24,15 @@ dependencies = [
 # "Homepage" = "https://github.com/facebookresearch/sam3"
 
 [project.optional-dependencies]
-dev   = ["pytest", "ruff"]
-# excel = ["openpyxl>=3.1"]
-# plot  = ["matplotlib>=3.8"]
+dev = ["pytest", "ruff"]
+dvc = ["dvc", "dvc-ssh"]
+dinov3 = [
+  "ftfy",
+  "omegaconf",
+  "regex",
+  "submitit",
+  "termcolor",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
