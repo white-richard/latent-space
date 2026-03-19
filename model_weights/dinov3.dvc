@@ -1,0 +1,6 @@
+outs:
+- md5: 6eb4a0819aa1c013fa28cfd1a443ea87.dir
+  size: 62079002652
+  nfiles: 8
+  hash: md5
+  path: dinov3
