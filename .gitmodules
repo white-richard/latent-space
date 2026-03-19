@@ -1,6 +1,3 @@
-[submodule "repos/dinov3_lightning"]
-	path = repos/dinov3_lightning
-	url = git@github.com:marjanstoimchev/DinoV3LightningTraining.git
 [submodule "repos/nested_learning"]
 	path = repos/nested_learning
 	url = git@github.com:kmccleary3301/nested_learning.git
