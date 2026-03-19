@@ -116,7 +116,7 @@ Contributions, ideas, and suggestions are welcome. If you plan to contribute:
 
 # Dataset Management (DVC)
 
-This repo uses [DVC](https://dvc.org/) to version and sync large assets (datasets, model weights, feature points) across machines. Actual files are **not stored in Git** — only lightweight `.dvc` pointer files are committed. The real data lives on my remote SSH servers (not accessible publically).
+This repo uses [DVC](https://dvc.org/) to version and sync large assets (datasets, model weights, feature points) across machines. These are stored privately but below is an example of how to use DVC for datasets.
 
 ## First-time setup on a new machine
 

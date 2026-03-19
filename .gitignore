@@ -1,5 +1,4 @@
 temp/
-model_weights/
 data/
 uv.lock
 checkpoints/
