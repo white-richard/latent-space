@@ -1,10 +1,6 @@
-import os
-import random
 from pathlib import Path
 
-import numpy as np
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import (
     LearningRateMonitor,
     ModelCheckpoint,
@@ -13,24 +9,12 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from latent_space.PaCMAP import visualize_embedding
+from latent_space.set_seeds import set_seeds
 from latent_space.umap_features import plot_umap
 
 from .config import Config, ExperimentConfig
 from .datamodule import CIFARDataModule
 from .lightning_module import VisionTransformerModule
-
-torch.backends.cudnn.benchmark = True
-
-
-def set_all_seeds(seed: int) -> None:
-    """Set all random seeds for reproducibility."""
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    pl.seed_everything(seed, workers=True)
 
 
 def create_callbacks(config: ExperimentConfig):
@@ -98,10 +82,8 @@ def generate_visualizations(
 
 
 def train(config: Config):
-    """Main training function."""
-    # Set random seeds
     if config.experiment.seed != -1:
-        set_all_seeds(config.experiment.seed)
+        set_seeds(config.experiment.seed)
 
     # Initialize data module
     datamodule = CIFARDataModule(config.data)
