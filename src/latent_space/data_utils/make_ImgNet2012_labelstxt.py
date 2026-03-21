@@ -23,7 +23,7 @@ def make_ImgNet2012_labels_txt(imagenet_data_dir: str) -> None:
 
     save_labels_path = data_dir / "labels.txt"
 
-    with open(save_labels_path, "w") as f:
+    with Path.open(save_labels_path, "w") as f:
         for wnid in ordered_wnids:
             names = wnid_to_names[wnid]
             main_name = names[0] if isinstance(names, (tuple, list)) else str(names)
