@@ -1,0 +1,5 @@
+outs:
+- md5: 3f0467ffeb7caec8b14106944e8d088b
+  size: 114213697
+  hash: md5
+  path: dinov3_vith16plus_vindr_mammoclipprocessed_features.pt
