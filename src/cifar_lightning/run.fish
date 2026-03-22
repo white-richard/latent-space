@@ -1,5 +1,4 @@
 #!/usr/bin/env fish
-# run.fish (repo root)
 
 set -l script_dir (dirname (status --current-filename))
 set -l repo_root (realpath "$script_dir/../..")
@@ -12,4 +11,4 @@ if not test -x "$venv_python"
 end
 
 # Editable install should make latent_space importable; no PYTHONPATH needed
-exec "$venv_python" -m cifar_lightning.experiments $argv
+python src/cifar_lightning/experiments.py $argv
