@@ -5,9 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.loggers import TensorBoardLogger
-from torch import nn
 
 from latent_space.PaCMAP import visualize_embedding
 from latent_space.set_seeds import set_seeds
@@ -119,26 +117,15 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--pin-memory", action="store_true")
     parser.add_argument("--scale", type=float, default=0.08)
-
     # Model
     parser.add_argument(
         "--model-name",
-        default="dinov3-small",
+        default="vit-tiny",
     )
-    parser.add_argument("--patch-size", type=int, default=16)
+    parser.add_argument("--patch-size", type=int, default=4)
+    parser.add_argument("--img-size", type=int, default=32)
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--use-mhc", action="store_true")
-    parser.add_argument(
-        "--dinov3-weights-path",
-        default="./model_weights/dinov3/dinov3_vits16plus_pretrain_lvd1689m-4057cbaa.pth",
-        help="Path to dinov3 weights file",
-    )
-    parser.add_argument(
-        "--dinov3-repo-path",
-        default="./repos/dinov3",
-        help="Path to dinov3 repo directory",
-    )
-
     # Training
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -212,7 +199,6 @@ def parse_args(argv=None) -> argparse.Namespace:
 
     losses_tuple = tuple(losses_list)
 
-    # Build a flat namespace with all config values (include dinov3 fields)
     return argparse.Namespace(
         # Data
         data_dir=parsed.data_dir,
@@ -224,10 +210,9 @@ def parse_args(argv=None) -> argparse.Namespace:
         # Model
         model_name=parsed.model_name,
         patch_size=parsed.patch_size,
+        img_size=parsed.img_size,
         num_classes=parsed.num_classes,
         use_mhc=parsed.use_mhc,
-        dinov3_weights_path=parsed.dinov3_weights_path,
-        dinov3_repo_path=parsed.dinov3_repo_path,
         num_batches=None,
         # Training
         epochs=parsed.epochs,

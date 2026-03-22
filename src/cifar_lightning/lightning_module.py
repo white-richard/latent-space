@@ -10,6 +10,7 @@ from torch import nn
 
 from latent_space.loss.circle_loss import CircleLoss, convert_label_to_similarity
 from latent_space.loss.koleo_loss import KoLeoLoss
+from latent_space.models.vision_transformer.vision_transformer import vit_tiny
 
 
 class VisionTransformerModule(pl.LightningModule):
@@ -19,24 +20,9 @@ class VisionTransformerModule(pl.LightningModule):
 
         self.config = config
 
-        # if config.model_name="dinov3":
-        #     dinov3_weights = config.dinov3_weights_path
-        #     dinov3_repo = config.dinov3_repo_path
-        #     dinov3_resize = config.dinov3_resize
-        #     self.model = get_dinov3(
-        #         dinov3_weights_path=dinov3_weights,
-        #         dinov3_repo_path=dinov3_repo,
-        #         resize=dinov3_resize,
-        #     )
-        #     self.model.init_weights()
-        # else:
-        #     raise ValueError(f"Unknown model name: {config.model_name}")
-
-        self.model = torch.nn.Sequential(
-            torch.nn.Linear(128, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 10),
-        )
+        if config.model_name=="vit-tiny":
+            self.model = vit_tiny(patch_size=config.patch_size, num_classes=config.num_classes, img_size=config.img_size)
+        
         # Loss functions
         self.loss_items = self._build_loss_items()
 
