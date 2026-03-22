@@ -35,4 +35,8 @@ jobs:
         run: |
           cd $HOME/latent-space
           cat out/metrics.txt >> report.md
+          echo "![](./out/pacmap_emb.png)" >> report.md
+          echo "![](./out/umap_nn15_emb.png)" >> report.md
+          dvc add out
+          dvc push
           cml pr create --md out/ --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --message report.md
