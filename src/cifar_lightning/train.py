@@ -246,7 +246,8 @@ def main(argv=None) -> int:
     metrics = train(cfg)
 
     print(f"Using dataset path: {cfg.data_dir}")
-    print(f"does it exist and is it a directory? {Path(cfg.data_dir).expanduser().is_dir()}")
+    print(f"Does it exist and is it a directory? {Path(cfg.data_dir).expanduser().is_dir()}")
+    print(f"Contents: {list(Path(cfg.data_dir).expanduser().iterdir())}")
 
     # Save metrics to out/metrics.txt
     output_dir = Path("out")
