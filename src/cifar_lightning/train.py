@@ -207,7 +207,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Lightning training")
 
     # Data
-    parser.add_argument("--data-dir", default="./data")
+    parser.add_argument("--data-dir", default="~/.code/latent-space/datasets/cifar")
     parser.add_argument("--use-cifar100", action="store_true")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--num-workers", type=int, default=4)

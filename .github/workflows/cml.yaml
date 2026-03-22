@@ -10,10 +10,10 @@ jobs:
 
       - name: Checkout
         run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/.code/latent-space
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
       - name: Setup
         run: |
-          cd $HOME/.code/latent-space
+          cd $HOME/latent-space
           uv venv .venv
           source .venv/bin/activate
           fish setup.fish
@@ -22,6 +22,6 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd $HOME/.code/latent-space
+          cd $HOME/latent-space
           fish src/cifar_lightning/run.fish --debug-mode
           cat out/metrics.txt >> report.md
