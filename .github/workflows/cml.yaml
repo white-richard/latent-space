@@ -23,7 +23,7 @@ jobs:
           cd $HOME/latent-space
           uv venv --python 3.10
           fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
-          dvc remote add -d --local wpeb-print $/home/richw/.code/latent-space/.dvc/cache
+          dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
           dvc pull /root/.code/latent-space/datasets/cifar.dvc
 
       - name: Train model
