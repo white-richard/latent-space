@@ -1,9 +1,12 @@
 [submodule "repos/nested_learning"]
 	path = repos/nested_learning
 	url = https://github.com/kmccleary3301/nested_learning.git
+	branch = main
 [submodule "repos/dinov3"]
 	path = repos/dinov3
 	url = https://github.com/white-richard/dinov3.git
+	branch = main
 [submodule "repos/pe"]
 	path = repos/pe
 	url = https://github.com/white-richard/perception_models.git
+	branch = main
