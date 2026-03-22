@@ -35,4 +35,7 @@ end
 
 uv pip install -r $latent_dir/requirements.txt
 uv pip install -e $latent_dir
-test "$use_dino" = true && uv pip install -e $latent_dir/repos/dinov3
+
+if test "$use_dino" = true
+    uv pip install -e $latent_dir/repos/dinov3
+end
