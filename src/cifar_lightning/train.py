@@ -129,7 +129,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     # Training
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight-decay", type=float, default=0.0)
+    parser.add_argument("--weight-decay", type=float, default=0.005)
     parser.add_argument("--use-bfloat16", action="store_true")
     parser.add_argument("--clip-norm", type=float, default=0.0)
     parser.add_argument("--frac-warmup", type=float, default=0.0)
@@ -144,9 +144,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--auto-trigger-cooldown", action="store_true")
 
     # Experiment/logging
-    parser.add_argument("--output-dir", default="./runs")
+    parser.add_argument("--output-dir", default="out")
     parser.add_argument("--experiment-name", default="default")
-    parser.add_argument("--seed", type=int, default=-1)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--debug-mode", action="store_true")
     parser.add_argument("--overfit-batches", type=float, default=0.0)
     parser.add_argument("--save-embeddings", action="store_true")
@@ -261,4 +261,4 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    main()

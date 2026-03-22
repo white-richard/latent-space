@@ -1,5 +1,5 @@
-test/loss: 2.3479485511779785
-test/acc: 0.0703125
-test/loss_cross_entropy: 2.3479485511779785
-test/knn_acc: 0.10000000149011612
-test/silhouette: -0.3230437636375427
+test/loss: 2.4693427085876465
+test/acc: 0.1875
+test/loss_cross_entropy: 2.4693427085876465
+test/knn_acc: 0.20679999887943268
+test/silhouette: -0.14565065503120422

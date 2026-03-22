@@ -20,9 +20,14 @@ class VisionTransformerModule(pl.LightningModule):
 
         self.config = config
 
-        if config.model_name=="vit-tiny":
-            self.model = vit_tiny(patch_size=config.patch_size, num_classes=config.num_classes, img_size=config.img_size)
-        
+        if config.model_name == "vit-tiny":
+            self.model = vit_tiny(
+                patch_size=config.patch_size,
+                num_classes=config.num_classes,
+                img_size=config.img_size,
+            )
+            self.model.init_weights()
+
         # Loss functions
         self.loss_items = self._build_loss_items()
 
@@ -196,6 +201,12 @@ class VisionTransformerModule(pl.LightningModule):
 
     def on_test_epoch_end(self) -> None:
         embeddings, labels = self.get_embeddings(self.trainer.datamodule.test_dataloader())
+
+        if np.any(np.isnan(embeddings)):
+            print("WARNING: embeddings contain NaN — skipping kNN/silhouette metrics")
+            self.log("test/knn_acc", float("nan"), prog_bar=False)
+            self.log("test/silhouette", float("nan"), prog_bar=False)
+            return
 
         # Compute metrics
         knn_acc, _ = self.knn_accuracy_in_embedding_space(embeddings, labels, k=1)
