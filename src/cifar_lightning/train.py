@@ -245,6 +245,9 @@ def main(argv=None) -> int:
     cfg = namespace_to_dataclass(args)
     metrics = train(cfg)
 
+    print(f"Using dataset path: {cfg.data_dir}")
+    print(f"does it exist and is it a directory? {Path(cfg.data_dir).expanduser().is_dir()}")
+
     # Save metrics to out/metrics.txt
     output_dir = Path("out")
     output_dir.mkdir(parents=True, exist_ok=True)
