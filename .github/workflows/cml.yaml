@@ -4,11 +4,14 @@ on: workflow_dispatch
 jobs:
   run:
     runs-on: [self-hosted, cml, gpu]
-    container:
-      image: cml-cuda128
-      options: --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all
+    # container:
+    #   image: cml-cuda128
+    #   options: --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all
     steps:
-      - uses: actions/checkout@v3
+      # - uses: actions/checkout@v3
+      - name: Checkout
+        run: |
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git .
 
       - name: Train model
         env:
