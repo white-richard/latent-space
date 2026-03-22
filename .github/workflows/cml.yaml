@@ -23,5 +23,6 @@ jobs:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $HOME/latent-space
+          source .venv/bin/activate
           fish src/cifar_lightning/run.fish --debug-mode
           cat out/metrics.txt >> report.md
