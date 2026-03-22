@@ -1,9 +1,9 @@
 [submodule "repos/nested_learning"]
 	path = repos/nested_learning
-	url = git@github.com:kmccleary3301/nested_learning.git
+	url = https://github.com/kmccleary3301/nested_learning.git
 [submodule "repos/dinov3"]
 	path = repos/dinov3
 	url = https://github.com/white-richard/dinov3.git
 [submodule "repos/pe"]
 	path = repos/pe
-	url = git@github.com:white-richard/perception_models.git
+	url = https://github.com/white-richard/perception_models.git
