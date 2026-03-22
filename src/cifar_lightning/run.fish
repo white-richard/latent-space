@@ -10,5 +10,4 @@ if not test -x "$venv_python"
     exit 1
 end
 
-# Editable install should make latent_space importable; no PYTHONPATH needed
-python src/cifar_lightning/experiments.py $argv
+$venv_python -m src.cifar_lightning.experiments $argv
