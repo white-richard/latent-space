@@ -10,4 +10,5 @@ if not test -x "$venv_python"
     exit 1
 end
 
+cd "$repo_root"
 $venv_python -m src.cifar_lightning.experiments $argv
