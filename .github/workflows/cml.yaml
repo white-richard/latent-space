@@ -28,6 +28,11 @@ jobs:
         run: |
           nvidia-smi
           cd $HOME/latent-space
-          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode --num-workers=0"
+          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish"
+      - name: Create PR
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd $HOME/latent-space
           cat out/metrics.txt >> report.md
-          cml comment create report.md
+          cml pr create --md out/ --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --message report.md
