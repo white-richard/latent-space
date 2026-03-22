@@ -4,6 +4,10 @@ on: workflow_dispatch
 jobs:
   run:
     runs-on: [self-hosted, cml, gpu]
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
       - name: Cleanup
         run: rm -rf $GITHUB_WORKSPACE && mkdir -p $GITHUB_WORKSPACE
