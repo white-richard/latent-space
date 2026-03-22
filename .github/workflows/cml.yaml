@@ -20,6 +20,7 @@ jobs:
           cd $HOME/latent-space
           uv venv --python 3.10
           fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
+          dvc pull -C /root/.code/latent-space /root/.code/latent-space/datasets/cifar.dvc
 
       - name: Train model
         env:
