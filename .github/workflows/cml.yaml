@@ -4,11 +4,10 @@ on: workflow_dispatch
 jobs:
   run:
     runs-on: [self-hosted, cml, gpu]
-    # container:
-    #   image: cml-cuda128
-    #   options: --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all
     steps:
-      # - uses: actions/checkout@v3
+      - name: Cleanup
+        run: rm -rf $GITHUB_WORKSPACE && mkdir -p $GITHUB_WORKSPACE
+
       - name: Checkout
         run: |
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git .
@@ -18,5 +17,6 @@ jobs:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           uv venv .venv
-          uv pip install --python .venv/bin/python -r requirements.txt
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
           fish src/cifar_lightning/run.fish --debug-mode
