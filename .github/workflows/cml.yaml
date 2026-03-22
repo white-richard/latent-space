@@ -18,5 +18,5 @@ jobs:
         run: |
           uv venv .venv
           source .venv/bin/activate
-          uv pip install -r requirements.txt
+          fish setup.fish
           fish src/cifar_lightning/run.fish --debug-mode
