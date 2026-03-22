@@ -10,13 +10,16 @@ jobs:
 
       - name: Checkout
         run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git .
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/.code/latent-space
+      - name: Setup
+        run: |
+          cd $HOME/.code/latent-space
+          uv venv .venv
+          source .venv/bin/activate
+          fish setup.fish
 
       - name: Train model
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          fish setup.fish
           fish src/cifar_lightning/run.fish --debug-mode
