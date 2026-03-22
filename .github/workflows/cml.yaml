@@ -20,6 +20,7 @@ jobs:
       - name: Train model
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CUDA_VISIBLE_DEVICES: "0"
         run: |
           cd $HOME/latent-space
           fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
