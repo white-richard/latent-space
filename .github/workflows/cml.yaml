@@ -15,15 +15,13 @@ jobs:
         run: |
           cd $HOME/latent-space
           uv venv .venv
-          source .venv/bin/activate
-          fish setup.fish
+          fish -c "source .venv/bin/activate.fish; fish setup.fish"
 
       - name: Train model
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $HOME/latent-space
-          source .venv/bin/activate
-          fish src/cifar_lightning/run.fish --debug-mode
+          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
           cat out/metrics.txt >> report.md
           cml comment create report.md
