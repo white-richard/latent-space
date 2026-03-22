@@ -23,6 +23,6 @@ jobs:
           CUDA_VISIBLE_DEVICES: "0"
         run: |
           cd $HOME/latent-space
-          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
+          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode --num-workers=0"
           cat out/metrics.txt >> report.md
           cml comment create report.md
