@@ -88,7 +88,9 @@ def train(config):
     test_metrics_list = trainer.test(module, datamodule=datamodule)
     test_metrics = test_metrics_list[0] if test_metrics_list else {}
 
-    generate_visualizations(module, datamodule, config)
+    # Visualizations: pass flat config (generate_visualizations reads fields like output_dir, umap_n_neighbors)
+    if getattr(config, "save_embeddings", False) and not getattr(config, "debug_mode", False):
+        generate_visualizations(module, datamodule, config)
 
     print("\nTraining complete!")
     return test_metrics
@@ -147,6 +149,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--debug-mode", action="store_true")
     parser.add_argument("--overfit-batches", type=float, default=0.0)
+    parser.add_argument("--save-embeddings", action="store_true")
 
     # UMAP visualization
     parser.add_argument(
@@ -229,6 +232,7 @@ def parse_args(argv=None) -> argparse.Namespace:
         seed=parsed.seed,
         debug_mode=parsed.debug_mode,
         overfit_batches=parsed.overfit_batches,
+        save_embeddings=parsed.save_embeddings,
         umap_n_neighbors=umap_n_neighbors,
         umap_min_dist=parsed.umap_min_dist,
         # Losses (immutable tuple)
