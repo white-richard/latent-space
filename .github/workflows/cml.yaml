@@ -42,5 +42,6 @@ jobs:
           echo "![](./out/pacmap_emb.png)" >> report.md
           echo "![](./out/umap_nn15_emb.png)" >> report.md
           dvc add out
+          git add out.dvc report.md .gitignore
           dvc push -r wpeb-print
           cml pr create --md out/ --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --message report.md
