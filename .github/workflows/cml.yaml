@@ -8,6 +8,9 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+    defaults:
+      run:
+        shell: bash -exo pipefail {0}
     steps:
       - name: Cleanup
         run: rm -rf $GITHUB_WORKSPACE && mkdir -p $GITHUB_WORKSPACE
@@ -20,6 +23,7 @@ jobs:
           cd $HOME/latent-space
           uv venv --python 3.10
           fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
+          dvc remote add -d wpeb-server /home/richw/.code/latent-space/.dvc/cache
           dvc pull /root/.code/latent-space/datasets/cifar.dvc
 
       - name: Train model
