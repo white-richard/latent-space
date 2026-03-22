@@ -2,7 +2,7 @@
 
 set -e VIRTUAL_ENV
 
-set latent_dir "$HOME/.code/latent-space/"
+set latent_dir (dirname (status filename))
 
 set project_dir $PWD
 
@@ -29,8 +29,8 @@ else
 end
 
 if test "$use_pe" = true
-uv pip install -r repos/pe/requirements.txt
-uv pip install -e repos/pe
+uv pip install -r $latent_dir/repos/pe/requirements.txt
+uv pip install -e $latent_dir/repos/pe
 end
 
 uv pip install -r $latent_dir/requirements.txt
