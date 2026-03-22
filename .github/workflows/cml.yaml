@@ -22,4 +22,5 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cd $HOME/.code/latent-space
           fish src/cifar_lightning/run.fish --debug-mode
