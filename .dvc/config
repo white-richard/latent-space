@@ -4,9 +4,3 @@
 [cache]
     type = "hardlink,symlink"
     protected = true
-['remote "wpeb-print"']
-    url = ssh://wpeb-print/home/richw/.code/latent-space/.dvc/cache
-    keyfile = /home/richw/.ssh/id_ed25519
-['remote "wpeb-server"']
-    url = ssh://wpeb-server/home/richw/.code/latent-space/.dvc/cache
-    keyfile = /home/richw/.ssh/id_ed25519
