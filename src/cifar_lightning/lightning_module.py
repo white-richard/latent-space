@@ -10,7 +10,6 @@ from torch import nn
 
 from latent_space.loss.circle_loss import CircleLoss, convert_label_to_similarity
 from latent_space.loss.koleo_loss import KoLeoLoss
-from latent_space.models.dinov3 import get_dinov3
 
 
 class VisionTransformerModule(pl.LightningModule):
@@ -20,21 +19,24 @@ class VisionTransformerModule(pl.LightningModule):
 
         self.config = config
 
-        # Need to define model — weights/repo path are configurable via config
-        dinov3_weights = getattr(
-            config,
-            "dinov3_weights_path",
-            "./model_weights/dinov3/dinov3_vits16plus_pretrain_lvd1689m-4057cbaa.pth",
-        )
-        dinov3_repo = getattr(config, "dinov3_repo_path", "./repos/dinov3")
-        dinov3_resize = getattr(config, "dinov3_resize", 384)
-        self.model = get_dinov3(
-            dinov3_weights_path=dinov3_weights,
-            dinov3_repo_path=dinov3_repo,
-            resize=dinov3_resize,
-        )
-        self.model.init_weights()
+        # if config.model_name="dinov3":
+        #     dinov3_weights = config.dinov3_weights_path
+        #     dinov3_repo = config.dinov3_repo_path
+        #     dinov3_resize = config.dinov3_resize
+        #     self.model = get_dinov3(
+        #         dinov3_weights_path=dinov3_weights,
+        #         dinov3_repo_path=dinov3_repo,
+        #         resize=dinov3_resize,
+        #     )
+        #     self.model.init_weights()
+        # else:
+        #     raise ValueError(f"Unknown model name: {config.model_name}")
 
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(128, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 10),
+        )
         # Loss functions
         self.loss_items = self._build_loss_items()
 

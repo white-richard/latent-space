@@ -6,6 +6,7 @@ checkpoints/
 events.out.tfevents.*
 .obsidian
 .claude
+CLAUDE.md
 tmp/
 
 build/

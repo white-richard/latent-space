@@ -52,109 +52,15 @@ def generate_visualizations(
 
 
 def train(config):
-    """Run training given a flat dataclass `config` (produced by namespace_to_dataclass).
-
-    If dinov3 weights/repo are missing and we're in debug mode, use a small
-    in-memory LightningModule fallback so the debug run can complete without
-    the heavyweight dinov3 model.
-    """
-    # Seed (flat config)
     if getattr(config, "seed", -1) != -1:
         set_seeds(config.seed)
 
-    # Data module: pass the flat config directly (CIFARDataModule reads attributes like data_dir, batch_size)
     datamodule = CIFARDataModule(config)
     datamodule.setup()
 
     # set number of batches for schedulers on the same flat config object
     config.num_batches = len(datamodule.train_dataloader())
-
-    # Simplified logic: when debug_mode is enabled, force use of a small dummy
-    # LightningModule so debug/test runs can be executed quickly without loading
-    # the heavyweight dinov3 model and its repo dependencies. Otherwise,
-    # instantiate the real VisionTransformerModule (which will try to load dinov3).
-    if getattr(config, "debug_mode", False):
-
-        class DummyVisionTransformerModule(pl.LightningModule):
-            def __init__(self, cfg) -> None:
-                super().__init__()
-                self.save_hyperparameters()
-                self.config = cfg
-                # CIFAR images: 3x32x32, compute in_features accordingly
-                in_ch = 3
-                img_h = 32
-                img_w = 32
-                in_features = in_ch * img_h * img_w
-                emb_dim = 64
-                self.backbone = nn.Sequential(
-                    nn.Flatten(),
-                    nn.Linear(in_features, emb_dim),
-                    nn.ReLU(),
-                )
-                self.head = nn.Linear(emb_dim, getattr(cfg, "num_classes", 10))
-                self.loss_fn = nn.CrossEntropyLoss()
-
-            def forward_cls(self, x):
-                return self.backbone(x)
-
-            def forward_head(self, emb):
-                return self.head(emb)
-
-            def forward(self, x):
-                emb = self.forward_cls(x)
-                return self.forward_head(emb)
-
-            def training_step(self, batch, batch_idx):
-                X, y = batch
-                logits = self.forward(X)
-                loss = self.loss_fn(logits, y)
-                pred = logits.argmax(dim=1)
-                acc = (pred == y).float().mean()
-                self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
-                self.log("train/acc", acc, on_step=True, on_epoch=True, prog_bar=True)
-                return loss
-
-            def validation_step(self, batch, batch_idx):
-                X, y = batch
-                logits = self.forward(X)
-                loss = self.loss_fn(logits, y)
-                pred = logits.argmax(dim=1)
-                acc = (pred == y).float().mean()
-                self.log("val/loss", loss, on_epoch=True, prog_bar=True)
-                self.log("val/acc", acc, on_epoch=True, prog_bar=True)
-                return {"val_loss": loss, "val_acc": acc}
-
-            def test_step(self, batch, batch_idx):
-                X, y = batch
-                logits = self.forward(X)
-                loss = self.loss_fn(logits, y)
-                pred = logits.argmax(dim=1)
-                acc = (pred == y).float().mean()
-                self.log("test/loss", loss, on_epoch=True)
-                self.log("test/acc", acc, on_epoch=True)
-                return {"test_loss": loss, "test_acc": acc}
-
-            def configure_optimizers(self):
-                return torch.optim.Adam(self.parameters(), lr=getattr(self.config, "lr", 1e-3))
-
-            def get_embeddings(self, dataloader):
-                self.eval()
-                embs = []
-                labels = []
-                with torch.no_grad():
-                    for X, y in dataloader:
-                        X = X.to(self.device)
-                        emb = self.forward_cls(X)
-                        embs.append(emb.cpu())
-                        labels.append(y)
-                embs = torch.cat(embs, dim=0)
-                labels = torch.cat(labels, dim=0)
-                return embs.numpy(), labels.numpy()
-
-        module = DummyVisionTransformerModule(config)
-    else:
-        # Model: pass the same flat config (VisionTransformerModule supports flat or nested)
-        module = VisionTransformerModule(config=config)
+    module = VisionTransformerModule(config=config)
 
     logger = TensorBoardLogger(
         save_dir=getattr(config, "output_dir", "./runs"),
@@ -217,8 +123,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     # Model
     parser.add_argument(
         "--model-name",
-        choices=["vit_tiny", "vit_small", "vit_base"],
-        default="vit_tiny",
+        default="dinov3-small",
     )
     parser.add_argument("--patch-size", type=int, default=16)
     parser.add_argument("--num-classes", type=int, default=10)
