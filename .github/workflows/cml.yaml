@@ -28,7 +28,7 @@ jobs:
         run: |
           nvidia-smi
           cd $HOME/latent-space
-          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish"
+          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
       - name: Create PR
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
