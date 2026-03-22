@@ -10,7 +10,7 @@ jobs:
 
       - name: Checkout
         run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
+          git clone --recurse-submodules https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
       - name: Setup
         run: |
           cd $HOME/latent-space
