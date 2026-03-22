@@ -22,3 +22,4 @@ rich
 tensorboard
 dvc
 dvc-ssh
+termcolor
