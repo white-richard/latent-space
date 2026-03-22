@@ -354,6 +354,14 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     cfg = namespace_to_dataclass(args)
     metrics = train(cfg)
+
+    # Save metrics to out/metrics.txt
+    output_dir = Path("out")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = output_dir / "metrics.txt"
+    with metrics_path.open("w") as f:
+        for key, value in metrics.items():
+            f.write(f"{key}: {value}\n")
     print("Test metrics:", metrics)
     return 0
 

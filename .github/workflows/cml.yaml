@@ -24,3 +24,4 @@ jobs:
         run: |
           cd $HOME/.code/latent-space
           fish src/cifar_lightning/run.fish --debug-mode
+          cat out/metrics.txt >> report.md
