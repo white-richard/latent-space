@@ -26,3 +26,4 @@ jobs:
           source .venv/bin/activate
           fish src/cifar_lightning/run.fish --debug-mode
           cat out/metrics.txt >> report.md
+          cml comment create report.md
