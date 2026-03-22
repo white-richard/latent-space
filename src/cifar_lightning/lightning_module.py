@@ -10,40 +10,29 @@ from torch import nn
 
 from latent_space.loss.circle_loss import CircleLoss, convert_label_to_similarity
 from latent_space.loss.koleo_loss import KoLeoLoss
-from latent_space.models.vision_transformer.vision_transformer import vit_base, vit_small, vit_tiny
-
-from .config import Config
+from latent_space.models.dinov3 import get_dinov3
 
 
 class VisionTransformerModule(pl.LightningModule):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.save_hyperparameters()
 
         self.config = config
 
-        if self.config.model.model_name == "vit_tiny":
-            self.model = vit_tiny(
-                patch_size=self.config.model.patch_size,
-                num_classes=self.config.model.num_classes,
-                use_mhc=self.config.model.use_mhc,
-            )
-        elif self.config.model.model_name == "vit_small":
-            self.model = vit_small(
-                patch_size=self.config.model.patch_size,
-                num_classes=self.config.model.num_classes,
-                use_mhc=self.config.model.use_mhc,
-            )
-        elif self.config.model.model_name == "vit_base":
-            self.model = vit_base(
-                patch_size=self.config.model.patch_size,
-                num_classes=self.config.model.num_classes,
-                use_mhc=self.config.model.use_mhc,
-            )
-        else:
-            msg = f"Unsupported model_name: {self.config.model.model_name}"
-            raise ValueError(msg)
-
+        # Need to define model — weights/repo path are configurable via config
+        dinov3_weights = getattr(
+            config,
+            "dinov3_weights_path",
+            "./model_weights/dinov3/dinov3_vits16plus_pretrain_lvd1689m-4057cbaa.pth",
+        )
+        dinov3_repo = getattr(config, "dinov3_repo_path", "./repos/dinov3")
+        dinov3_resize = getattr(config, "dinov3_resize", 384)
+        self.model = get_dinov3(
+            dinov3_weights_path=dinov3_weights,
+            dinov3_repo_path=dinov3_repo,
+            resize=dinov3_resize,
+        )
         self.model.init_weights()
 
         # Loss functions
@@ -67,39 +56,73 @@ class VisionTransformerModule(pl.LightningModule):
 
     def _build_loss_items(self):
         items = []
-        for item in self.config.loss.losses:
-            if item.name == "cross_entropy":
+        # Support either nested config.loss.losses or flat config.losses (list of specs)
+        if hasattr(self.config, "loss") and hasattr(self.config.loss, "losses"):
+            raw_losses = self.config.loss.losses
+        else:
+            raw_losses = getattr(self.config, "losses", None)
+
+        if not raw_losses:
+            # default to a single cross_entropy if nothing provided
+            raw_losses = ["cross_entropy"]
+
+        for item in raw_losses:
+            # Normalize an item into common fields (support string, Namespace, or dict)
+            if isinstance(item, str):
+                name = item
+                weight = 1.0
+                start_epoch = 0
+                warmup_epochs = 0
+                circle_m = 0.25
+                circle_gamma = 256.0
+            # item might be an argparse.Namespace or a dict-like
+            elif isinstance(item, dict):
+                name = item.get("name", "cross_entropy")
+                weight = float(item.get("weight", 1.0))
+                start_epoch = int(item.get("start_epoch", 0))
+                warmup_epochs = int(item.get("warmup_epochs", 0))
+                circle_m = float(item.get("circle_m", 0.25))
+                circle_gamma = float(item.get("circle_gamma", 256.0))
+            else:
+                name = getattr(item, "name", "cross_entropy")
+                weight = float(getattr(item, "weight", 1.0))
+                start_epoch = int(getattr(item, "start_epoch", 0))
+                warmup_epochs = int(getattr(item, "warmup_epochs", 0))
+                circle_m = float(getattr(item, "circle_m", 0.25))
+                circle_gamma = float(getattr(item, "circle_gamma", 256.0))
+
+            if name == "cross_entropy":
                 items.append(
                     {
                         "name": "cross_entropy",
-                        "weight": float(item.weight),
-                        "start_epoch": int(item.start_epoch),
-                        "warmup_epochs": int(item.warmup_epochs),
+                        "weight": float(weight),
+                        "start_epoch": int(start_epoch),
+                        "warmup_epochs": int(warmup_epochs),
                         "fn": nn.CrossEntropyLoss(),
                     },
                 )
-            elif item.name == "circle":
+            elif name == "circle":
                 items.append(
                     {
                         "name": "circle",
-                        "weight": float(item.weight),
-                        "start_epoch": int(item.start_epoch),
-                        "warmup_epochs": int(item.warmup_epochs),
-                        "fn": CircleLoss(m=item.circle_m, gamma=item.circle_gamma),
+                        "weight": float(weight),
+                        "start_epoch": int(start_epoch),
+                        "warmup_epochs": int(warmup_epochs),
+                        "fn": CircleLoss(m=circle_m, gamma=circle_gamma),
                     },
                 )
-            elif item.name == "koleo":
+            elif name == "koleo":
                 items.append(
                     {
                         "name": "koleo",
-                        "weight": float(item.weight),
-                        "start_epoch": int(item.start_epoch),
-                        "warmup_epochs": int(item.warmup_epochs),
+                        "weight": float(weight),
+                        "start_epoch": int(start_epoch),
+                        "warmup_epochs": int(warmup_epochs),
                         "fn": KoLeoLoss(),
                     },
                 )
             else:
-                msg = f"Unknown loss name: {item.name}"
+                msg = f"Unknown loss name: {name}"
                 raise ValueError(msg)
         return items
 
@@ -195,23 +218,43 @@ class VisionTransformerModule(pl.LightningModule):
         self.log("test/silhouette", overall_sil, prog_bar=False)
 
     def configure_optimizers(self):
-        """Configure optimizer and learning rate scheduler."""
+        """Configure optimizer and learning rate scheduler.
+
+        This function supports both a nested config (config.training / config.model)
+        and a flat config (top-level attributes like lr, epochs, num_batches, etc.).
+        Preference: use nested attributes if present, otherwise fall back to flat.
+        """
+        # choose training/model view (nested or flat)
+        training_cfg = getattr(self.config, "training", None) or self.config
+        model_cfg = getattr(self.config, "model", None) or self.config
+
         optimizer = torch.optim.AdamW(
             self.parameters(),
-            lr=self.config.training.lr,
-            weight_decay=self.config.training.weight_decay,
+            lr=getattr(training_cfg, "lr", getattr(self.config, "lr", 1e-3)),
+            weight_decay=getattr(
+                training_cfg,
+                "weight_decay",
+                getattr(self.config, "weight_decay", 0.0),
+            ),
         )
 
-        num_batches = self.config.model.num_batches
+        num_batches = getattr(model_cfg, "num_batches", getattr(self.config, "num_batches", None))
         if num_batches is None:
             msg = "TrainingConfig.num_batches must be set before training."
             raise ValueError(msg)
 
-        n_iters = num_batches * self.config.training.epochs
-        warmup_steps = int(self.config.training.frac_warmup * n_iters)
+        n_iters = num_batches * getattr(training_cfg, "epochs", getattr(self.config, "epochs", 1))
+        warmup_steps = int(
+            getattr(training_cfg, "frac_warmup", getattr(self.config, "frac_warmup", 0.0))
+            * n_iters,
+        )
 
-        base_lr = self.config.training.lr
-        min_lr = base_lr * self.config.training.lr_min_factor
+        base_lr = getattr(training_cfg, "lr", getattr(self.config, "lr", 1e-3))
+        min_lr = base_lr * getattr(
+            training_cfg,
+            "lr_min_factor",
+            getattr(self.config, "lr_min_factor", 0.0),
+        )
 
         def lr_lambda(current_step: int):
             # Linear warmup
@@ -222,22 +265,43 @@ class VisionTransformerModule(pl.LightningModule):
             cosine_decay = 0.5 * (1.0 + math.cos(math.pi * progress))
             return max(min_lr / base_lr, cosine_decay)
 
-        if self.config.training.scheduler_name == "cosine":
+        scheduler_name = getattr(
+            training_cfg,
+            "scheduler_name",
+            getattr(self.config, "scheduler_name", "cosine"),
+        )
+        if scheduler_name == "cosine":
             scheduler = torch.optim.lr_scheduler.LambdaLR(
                 optimizer,
                 lr_lambda=lr_lambda,
             )
-        elif self.config.training.scheduler_name == "warmup_hold_decay":
+        elif scheduler_name == "warmup_hold_decay":
             from latent_space.schedulers.warm_hold_decay_scheduler import WHDScheduler
 
             scheduler = WHDScheduler(
                 optimizer,
                 n_iterations=n_iters,
-                frac_warmup=self.config.training.frac_warmup,
-                final_lr_factor=self.config.training.lr_min_factor,
-                decay_type=self.config.training.decay_type,
-                start_cooldown_immediately=self.config.training.start_cooldown_immediately,
-                auto_trigger_cooldown=self.config.training.auto_trigger_cooldown,
+                frac_warmup=getattr(
+                    training_cfg,
+                    "frac_warmup",
+                    getattr(self.config, "frac_warmup", 0.0),
+                ),
+                final_lr_factor=getattr(
+                    training_cfg,
+                    "lr_min_factor",
+                    getattr(self.config, "lr_min_factor", 0.0),
+                ),
+                decay_type=getattr(
+                    training_cfg,
+                    "decay_type",
+                    getattr(self.config, "decay_type", "cosine"),
+                ),
+                start_cooldown_immediately=getattr(
+                    training_cfg,
+                    "start_cooldown_immediately",
+                    False,
+                ),
+                auto_trigger_cooldown=getattr(training_cfg, "auto_trigger_cooldown", False),
             )
             return {
                 "optimizer": optimizer,
@@ -248,7 +312,7 @@ class VisionTransformerModule(pl.LightningModule):
                 },
             }
         else:
-            msg = f"Unknown scheduler name: {self.config.training.scheduler_name}"
+            msg = f"Unknown scheduler name: {scheduler_name}"
             raise ValueError(msg)
 
         return {

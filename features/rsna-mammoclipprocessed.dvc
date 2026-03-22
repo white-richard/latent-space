@@ -1,0 +1,6 @@
+outs:
+- md5: ee5b99421b93ebfd4d82c9c278e3f5fd.dir
+  size: 3190699553
+  nfiles: 5
+  hash: md5
+  path: rsna-mammoclipprocessed

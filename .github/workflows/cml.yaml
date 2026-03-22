@@ -1,0 +1,26 @@
+name: cifar-10-lightning
+on: workflow_dispatch
+jobs:
+    run:
+        runs-on: [self-hosted, cml, gpu]
+        container:
+              image: cml-cuda128 # Custom built from cml repo
+             # image: ghcr.io/iterative/cml:0-dvc2-base1-gpu
+        steps:
+            - uses: actions/checkout@v3
+              # may need to setup NodeJS & Python3 on e.g. self-hosted
+              # - uses: actions/setup-node@v3
+              #   with:
+              #     node-version: '16'
+              # - uses: actions/setup-python@v4
+              with:
+                  python-version: "3.10.19"
+                  cache: "pip"
+            - uses: actions/setup-cml@v1
+            # - uses: iterative/setup-cml@v1
+              env:
+                REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Train model
+              run: |
+                  pip install -r requirements.txt
+                  bash src/cifar_lightning/run.fish

@@ -3,13 +3,11 @@ import torchvision
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from .config import DataConfig
-
 
 class CIFARDataModule(pl.LightningDataModule):
     """PyTorch Lightning DataModule for CIFAR dataset."""
 
-    def __init__(self, config: DataConfig) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.config = config
 
