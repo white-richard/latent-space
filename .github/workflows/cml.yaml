@@ -2,53 +2,61 @@ name: cifar-10-lightning
 on: workflow_dispatch
 
 jobs:
-  run:
-    runs-on: [self-hosted, cml, gpu]
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    defaults:
-      run:
-        shell: bash -exo pipefail {0}
-    steps:
-      - name: Cleanup
-        run: rm -rf $GITHUB_WORKSPACE && mkdir -p $GITHUB_WORKSPACE
+    run:
+        runs-on: [self-hosted, cml, gpu]
+        permissions:
+            contents: write
+            pull-requests: write
+            issues: write
+        defaults:
+            run:
+                shell: bash -exo pipefail {0}
+        steps:
+            - name: Cleanup
+              run: rm -rf $GITHUB_WORKSPACE && mkdir -p $GITHUB_WORKSPACE
 
-      - name: Checkout
-        run: |
-          git clone --recurse-submodules https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
-      - name: Setup
-        run: |
-          cd $HOME/latent-space
-          uv venv --python 3.10
-          fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
-          dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
-          dvc pull /root/.code/latent-space/datasets/cifar.dvc
+            - name: Checkout
+              run: |
+                  git clone --recurse-submodules https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
+            - name: Setup
+              run: |
+                  cd $HOME/latent-space
+                  uv venv --python 3.10
+                  fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
+                  dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
+                  dvc pull /root/.code/latent-space/datasets/cifar.dvc
 
-      - name: Train model
-        env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          nvidia-smi
-          cd $HOME/latent-space
-          fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
-      - name: Create PR
-        env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd $HOME/latent-space
-          
-          echo "## Metrics" >> report.md
-          git fetch --prune
-          dvc metrics diff main --show-md >> report.md
-          
-          echo "## Plots" >> report.md
-          echo "![](./out/pacmap_emb.png)" >> report.md
-          echo "![](./out/umap_nn15_emb.png)" >> report.md
-          
-          dvc add out
-          git add out.dvc report.md .gitignore
-          dvc push -r wpeb-print
-          
-          cml comment create --md out/ --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --message report.md
+            - name: Train model
+              env:
+                  REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  nvidia-smi
+                  cd $HOME/latent-space
+                  fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
+            - name: Create PR
+              if: success()
+              env:
+                  REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  cd $HOME/latent-space
+
+                  echo "## Metrics" >> report.md
+                  git fetch --prune
+                  dvc metrics diff main --show-md >> report.md || echo "_no baseline to diff against_" >> report.md
+
+                  echo "## Plots" >> report.md
+                  [ -f out/pacmap_emb.png ] && echo "![](./out/pacmap_emb.png)" >> report.md
+                  [ -f out/umap_nn15_emb.png ] && echo "![](./out/umap_nn15_emb.png)" >> report.md
+
+                  dvc add out
+                  git add out.dvc report.md .gitignore
+                  dvc push -r wpeb-print
+
+                  cml pr create --md out/ --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --message report.md
+            - name: Post report
+              if: always()
+              env:
+                  REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  cd $HOME/latent-space
+                  cml comment create report.md
