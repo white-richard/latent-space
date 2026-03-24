@@ -47,4 +47,34 @@ jobs:
                   git add out.dvc report.md .gitignore
                   dvc push -r wpeb-print
 
-                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID" --base main
+                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID" --target-branch main
+
+# cml pr create
+# Global Options:
+#   --log                    Logging verbosity
+#           [string] [choices: "error", "warn", "info", "debug"] [default: "info"]
+#   --driver                 Git provider where the repository is hosted
+#     [string] [choices: "github", "gitlab", "bitbucket"] [default: infer from the
+#                                                                     environment]
+#   --repo                   Repository URL or slug
+#                                   [string] [default: infer from the environment]
+#   --driver-token, --token  CI driver personal/project access token (PAT)
+#                                   [string] [default: infer from the environment]
+#   --help                   Show help                                   [boolean]
+
+# Options:
+#   --md                   Output in markdown format [](url)             [boolean]
+#   --skip-ci              Force skip CI for the created commit (if any) [boolean]
+#   --merge, --auto-merge  Try to merge the pull request upon creation   [boolean]
+#   --rebase               Try to rebase-merge the pull request upon creation
+#                                                                        [boolean]
+#   --squash               Try to squash-merge the pull request upon creation
+#                                                                        [boolean]
+#   --branch               Pull request branch name                       [string]
+#   --target-branch        Pull request target branch name                [string]
+#   --title                Pull request title                             [string]
+#   --body                 Pull request description                       [string]
+#   --message              Commit message                                 [string]
+#   --remote               Git remote                 [string] [default: "origin"]
+#   --user-email           Git user email[string] [default: "olivaw@iterative.ai"]
+#   --user-name            Git user name         [string] [default: "Olivaw[bot]"]
