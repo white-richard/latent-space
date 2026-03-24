@@ -44,7 +44,7 @@ jobs:
 
                   echo "## Metrics" >> report.md
                   git fetch --prune
-                  cat metrics.txt >> report.md
+                  cat out/metrics.txt >> report.md
                   dvc metrics diff main --show-md >> report.md || echo "_no baseline to diff against_" >> report.md
 
                   echo "## Plots" >> report.md
