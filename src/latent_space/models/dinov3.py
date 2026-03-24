@@ -43,6 +43,20 @@ def _infer_model_name(weights_path: pathlib.Path) -> str:
     """Infer the DINOv3 model name from the official weight filename.
     Expects filenames like: `vitb16_pretrain.pth`, `vitl14_pretrain.pth`, etc.
     """
+    if "convnext" in weights_path.name.lower():
+        # model_weights/dinov3/dinov3_convnext_base_pretrain_lvd1689m-801f2ba9.pth
+        # Grab large or base from the string
+        if "large" in weights_path.name.lower():
+            model_name = "convnext_large"
+        elif "base" in weights_path.name.lower():
+            model_name = "convnext_base"
+        else:
+            msg = "convnext model weights filename must include 'large' or 'base' to infer model name."
+            raise ValueError(
+                msg,
+            )
+        return model_name
+
     model_name = weights_path.name.split("_pretrain")[0]
     if not model_name:
         msg = "dinov3_weights_path not in official format; model_name cannot be inferred."
