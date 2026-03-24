@@ -12,17 +12,10 @@ jobs:
             run:
                 shell: bash -exo pipefail {0}
         steps:
-            - name: Cleanup
-              run: rm -rf $GITHUB_WORKSPACE && mkdir -p $GITHUB_WORKSPACE
-
-            - name: Checkout
-              run: |
-                  git clone --recurse-submodules https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
-
+            - uses: actions/checkout@v3
             - name: Setup
               run: |
-                  cd $HOME/latent-space
-                  git checkout expr/higher-lr
+                  echo "Current working directory: $(pwd)"
                   chmod -R 777 ~/.cache/uv
                   uv venv --python 3.10
                   fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
@@ -34,19 +27,16 @@ jobs:
                   REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   nvidia-smi
-                  cd $HOME/latent-space
                   fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
             - name: Create PR
               if: success()
               env:
                   REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  cd $HOME/latent-space
-
                   echo "## Metrics" >> report.md
                   git fetch --prune
                   cat out/metrics.txt >> report.md
-                  dvc metrics diff main --md >> report.md || echo "_no baseline to diff against_" >> report.md
+                  # dvc metrics diff main --md >> report.md || echo "_no baseline to diff against_" >> report.md
 
                   echo "## Plots" >> report.md
                   [ -f out/pacmap_emb.png ] && echo "![](./out/pacmap_emb.png)" >> report.md
@@ -56,4 +46,4 @@ jobs:
                   git add out.dvc report.md .gitignore
                   dvc push -r wpeb-print
 
-                  cml pr create --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --body report.md
+                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID"
