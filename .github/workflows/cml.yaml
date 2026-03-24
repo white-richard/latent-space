@@ -18,6 +18,7 @@ jobs:
             - name: Checkout
               run: |
                   git clone --recurse-submodules https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
+
             - name: Setup
               run: |
                   cd $HOME/latent-space
@@ -42,6 +43,7 @@ jobs:
 
                   echo "## Metrics" >> report.md
                   git fetch --prune
+                  cat metrics.txt >> report.md
                   dvc metrics diff main --show-md >> report.md || echo "_no baseline to diff against_" >> report.md
 
                   echo "## Plots" >> report.md
@@ -52,7 +54,7 @@ jobs:
                   git add out.dvc report.md .gitignore
                   dvc push -r wpeb-print
 
-                  cml pr create --md out/ --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --message report.md
+                  cml pr create --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')"
             - name: Post report
               if: always()
               env:

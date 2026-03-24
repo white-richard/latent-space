@@ -47,9 +47,9 @@ def _infer_model_name(weights_path: pathlib.Path) -> str:
         # model_weights/dinov3/dinov3_convnext_base_pretrain_lvd1689m-801f2ba9.pth
         # Grab large or base from the string
         if "large" in weights_path.name.lower():
-            model_name = "convnext_large"
+            model_name = "dinov3_convnext_large"
         elif "base" in weights_path.name.lower():
-            model_name = "convnext_base"
+            model_name = "dinov3_convnext_base"
         else:
             msg = "convnext model weights filename must include 'large' or 'base' to infer model name."
             raise ValueError(
