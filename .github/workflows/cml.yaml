@@ -18,11 +18,11 @@ jobs:
             - name: Checkout
               run: |
                   git clone --recurse-submodules https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/white-richard/latent-space.git $HOME/latent-space
-                  git checkout expr/higher-lr
 
             - name: Setup
               run: |
                   cd $HOME/latent-space
+                  git checkout expr/higher-lr
                   chmod -R 777 ~/.cache/uv
                   uv venv --python 3.10
                   fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
