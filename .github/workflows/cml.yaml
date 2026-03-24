@@ -45,7 +45,7 @@ jobs:
                   echo "## Metrics" >> report.md
                   git fetch --prune
                   cat out/metrics.txt >> report.md
-                  dvc metrics diff main --show-md >> report.md || echo "_no baseline to diff against_" >> report.md
+                  dvc metrics diff main --md >> report.md || echo "_no baseline to diff against_" >> report.md
 
                   echo "## Plots" >> report.md
                   [ -f out/pacmap_emb.png ] && echo "![](./out/pacmap_emb.png)" >> report.md
@@ -55,4 +55,4 @@ jobs:
                   git add out.dvc report.md .gitignore
                   dvc push -r wpeb-print
 
-                  cml pr create --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --description report.md
+                  cml pr create --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --body report.md
