@@ -11,4 +11,4 @@ if not test -x "$venv_python"
 end
 
 cd "$repo_root"
-$venv_python -m src.cifar_lightning.train $argv
+$venv_python -m src.cifar_lightning.train --lr 0.1 $argv
