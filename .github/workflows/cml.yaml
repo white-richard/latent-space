@@ -22,6 +22,7 @@ jobs:
             - name: Setup
               run: |
                   cd $HOME/latent-space
+                  chmod -R 777 ~/.cache/uv
                   uv venv --python 3.10
                   fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
                   dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
