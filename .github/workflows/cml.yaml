@@ -55,10 +55,3 @@ jobs:
                   dvc push -r wpeb-print
 
                   cml pr create --title "${{ github.workflow }}: $(date +'%Y-%m-%d %H:%M')" --description report.md
-            - name: Post report
-              if: success()
-              env:
-                  REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  cd $HOME/latent-space
-                  cml comment create report.md
