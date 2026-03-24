@@ -35,7 +35,7 @@ jobs:
                   REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   echo "## Metrics" >> report.md
-                  git fetch --prune
+                  git fetch --prune --no-recurse-submodules
                   cat out/metrics.txt >> report.md
                   # dvc metrics diff main --md >> report.md || echo "_no baseline to diff against_" >> report.md
 
