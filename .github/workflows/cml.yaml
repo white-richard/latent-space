@@ -47,4 +47,4 @@ jobs:
                   git add out.dvc report.md .gitignore
                   dvc push -r wpeb-print
 
-                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID"
+                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID" --base main
