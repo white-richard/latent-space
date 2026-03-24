@@ -33,6 +33,7 @@ uv pip install -r $latent_dir/repos/pe/requirements.txt
 uv pip install -e $latent_dir/repos/pe
 end
 
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 uv pip install -r $latent_dir/requirements.txt
 uv pip install -e $latent_dir
 
