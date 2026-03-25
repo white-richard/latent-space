@@ -16,14 +16,7 @@ jobs:
       - name: Submit job to Slurm
         id: submit
         run: |
-          BRANCH="${{ github.ref_name }}"
-          SCRIPT_SUFFIX=$(echo "$BRANCH" | sed 's|expr/||' | tr '-' '_')
-          RUN_SCRIPT="src/cifar_lightning/run_${SCRIPT_SUFFIX}.fish"
-          [ -f "$RUN_SCRIPT" ] || RUN_SCRIPT="src/cifar_lightning/run.fish"
-          echo "Using run script: $RUN_SCRIPT"
-
-          JOB_ID=$(GIT_BRANCH="$BRANCH" \
-            RUN_SCRIPT="$RUN_SCRIPT" \
+          JOB_ID=$(GIT_BRANCH="${{ github.ref_name }}" \
             sbatch --parsable jobs/train.sh)
           echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
           echo "Submitted Slurm job $JOB_ID"
@@ -32,7 +25,6 @@ jobs:
         run: |
           JOB_ID="${{ steps.submit.outputs.job_id }}"
           echo "Waiting for job $JOB_ID..."
-
           while true; do
             STATE=$(scontrol show job "$JOB_ID" 2>/dev/null \
               | grep -oP 'JobState=\K\S+' || echo "GONE")
@@ -51,8 +43,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "## Training Results" > report.md
-          echo "Run on: $(hostname)" >> report.md
+          echo "Branch: ${{ github.ref_name }}" >> report.md
           echo "Job ID: ${{ steps.submit.outputs.job_id }}" >> report.md
-
-          # Post as PR comment using gh cli (available on native runner)
           gh pr comment ${{ github.event.pull_request.number }} --body-file report.md
