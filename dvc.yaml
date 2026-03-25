@@ -1,0 +1,8 @@
+stages:
+  train:
+    cmd: fish src/cifar_lightning/run.fish --debug-mode
+    deps:
+      - src/cifar_lightning/
+      - datasets/cifar/
+    outs:  
+      - out
