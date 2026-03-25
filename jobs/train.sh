@@ -11,7 +11,7 @@
 
 set -e
 
-REPO="git@github.com:white-richard/your-repo-name.git"
+REPO="git@github.com:white-richard/latent-space.git"
 BRANCH="${GIT_BRANCH:-main}"
 WORKDIR="/tmp/job-${SLURM_JOB_ID}"
 
@@ -21,19 +21,24 @@ echo "=== Branch: $BRANCH ==="
 # 1. Clone the repo at the correct branch/commit
 git clone --branch "$BRANCH" "$REPO" "$WORKDIR"
 cd "$WORKDIR"
+git submodule update --init --recursive
 
 # 2. Set up Python environment
-uv venv .venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
+uv venv --python 3.10
+fish
+source ~/.venv/bin/activate.fish
+fish setup.fish --dino
 
 # 3. Pull data via DVC
-dvc pull
+dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
+dvc pull /root/.code/latent-space/datasets/cifar.dvc
 
 # 4. Run training — adjust this to your entrypoint
-python train.py
+chmod +x src/cifar_lightning/run.fish
+./src/cifar_lightning/run.fish --debug-mode
 
 # 5. Push results back via DVC
+dvc add out
 dvc push
 
 # 6. Clean up
