@@ -5,7 +5,7 @@ jobs:
   launch-runner:
     runs-on: [self-hosted, slurm] # Runs on your head node
     steps:
-      - uses: iterative/setup-cml@v1
+      - uses: iterative/setup-cml@v4.2.2
       - name: Launch Runner on Slurm
         env:
           REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
