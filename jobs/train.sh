@@ -20,7 +20,6 @@ docker run --rm --gpus all \
   -v /home/richw/.code/latent-space:/root/.code/latent-space:ro \
   -v "${HOME}/.cache/uv:/root/.cache/uv" \
   ml-runner:latest bash -c '
-    chmod 600 /root/.ssh/github_deploy /root/.ssh/dvc_key
     export GIT_SSH_COMMAND="ssh -i /root/.ssh/github_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     git clone --branch "$GIT_BRANCH" git@github.com:white-richard/latent-space.git /workspace
     cd /workspace
