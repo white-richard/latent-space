@@ -33,11 +33,12 @@ jobs:
             echo "  State: $STATE"
           
             case "$STATE" in
-              COMPLETED) echo "Job completed successfully"; exit 0 ;;
-              GONE)      echo "Job completed and purged from scheduler"; exit 0 ;;
-              FAILED)    echo "Job failed"; exit 1 ;;
-              CANCELLED) echo "Job was cancelled"; exit 1 ;;
-              TIMEOUT)   echo "Job timed out"; exit 1 ;;
+              COMPLETED)  echo "Job completed successfully"; exit 0 ;;
+              COMPLETING) echo "Job completing..."; sleep 10 ;;
+              GONE)       echo "Job completed and purged from scheduler"; exit 0 ;;
+              FAILED)     echo "Job failed"; exit 1 ;;
+              CANCELLED)  echo "Job was cancelled"; exit 1 ;;
+              TIMEOUT)    echo "Job timed out"; exit 1 ;;
             esac
           
             sleep 5
