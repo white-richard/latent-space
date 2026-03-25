@@ -12,6 +12,8 @@ exec 1>/tmp/slurm-${SLURM_JOB_ID}.out
 exec 2>/tmp/slurm-${SLURM_JOB_ID}.err
 set -ex   # -x prints every command before executing it
 
+rm -rf /tmp/job-${SLURM_JOB_ID}
+
 export PATH="/home/richw/.local/bin:$PATH"
 
 REPO="git@github.com:white-richard/latent-space.git"
@@ -27,9 +29,11 @@ cd "$WORKDIR"
 git submodule update --init --recursive
 
 # 2. Set up Python environment
-sudo chown -R richw:richw ~/.cache/uv
-chmod -R 777 ~/.cache/uv
-fish setup.fish --dino
+# sudo chown -R richw:richw ~/.cache/uv
+# chmod -R 777 ~/.cache/uv
+uv venv --python 3.10
+echo "hi"
+/usr/bin/fish setup.fish --dino
 
 # 3. Pull data via DVC
 dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
