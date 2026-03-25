@@ -23,20 +23,18 @@ cd "$WORKDIR"
 git submodule update --init --recursive
 
 # 2. Set up Python environment
-uv venv --python 3.10
-fish
-source ~/.venv/bin/activate.fish
+uv venv --python 3.10 .venv
+source ~/.venv/bin/activate
 fish setup.fish --dino
 
 # 3. Pull data via DVC
 dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
-dvc pull /root/.code/latent-space/datasets/cifar.dvc
+dvc pull /home/richw/.code/latent-space/datasets/cifar.dvc
 
 nvidia-smi
 
 # 4. Run training — adjust this to your entrypoint
-chmod +x src/cifar_lightning/run.fish
-./src/cifar_lightning/run.fish --debug-mode
+fish src/cifar_lightning/run.fish --debug-mode
 
 # 5. Push results back via DVC
 dvc add out
