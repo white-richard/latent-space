@@ -8,7 +8,9 @@
 #SBATCH --mem=28G
 #SBATCH --partition=all
 
-set -e
+exec 1>/tmp/slurm-${SLURM_JOB_ID}.out
+exec 2>/tmp/slurm-${SLURM_JOB_ID}.err
+set -ex   # -x prints every command before executing it
 
 export PATH="/home/richw/.local/bin:$PATH"
 
