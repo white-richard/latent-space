@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 1440 # 24 hours — adjust to your longest expected job
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
       - name: Submit job to Slurm
         id: submit 
