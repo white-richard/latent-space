@@ -12,27 +12,56 @@
 
 set -ex
 
-docker run --rm --gpus all \
-  -e GIT_BRANCH="${GIT_BRANCH:-main}" \
+# ============================================================
+# PROJECT-SPECIFIC CONFIGURATION
+# ============================================================
+GITHUB_REPO="white-richard/latent-space"
+DATA_MOUNT="/home/richw/.code/latent-space"   # local data cache path on each machine
+DEFAULT_RUN_SCRIPT="src/cifar_lightning/run.fish"
+SETUP_CMD="fish setup.fish --dino"
+DVC_PULL_PATH="datasets/cifar.dvc"            # set to "." to pull everything
+GIT_USER_EMAIL="98299003+white-richard@users.noreply.github.com"
+GIT_USER_NAME="white-richard"
+# ============================================================
+
+# Derive run script from branch name
+# expr/higher-lr → src/.../run_higher_lr.fish, falls back to DEFAULT_RUN_SCRIPT
+BRANCH="${GIT_BRANCH:-main}"
+SCRIPT_SUFFIX=$(echo "$BRANCH" | sed 's|expr/||' | tr '-' '_')
+RUN_SCRIPT="$(dirname $DEFAULT_RUN_SCRIPT)/run_${SCRIPT_SUFFIX}.fish"
+
+docker run --rm --device nvidia.com/gpu=all \
+  -e GIT_BRANCH="$BRANCH" \
   -e SLURM_JOB_ID="$SLURM_JOB_ID" \
+  -e GITHUB_REPO="$GITHUB_REPO" \
+  -e DEFAULT_RUN_SCRIPT="$DEFAULT_RUN_SCRIPT" \
+  -e RUN_SCRIPT="$RUN_SCRIPT" \
+  -e SETUP_CMD="$SETUP_CMD" \
+  -e DVC_PULL_PATH="$DVC_PULL_PATH" \
+  -e GIT_USER_EMAIL="$GIT_USER_EMAIL" \
+  -e GIT_USER_NAME="$GIT_USER_NAME" \
   -v /home/slurm-jobs/.ssh/github_deploy:/root/.ssh/github_deploy:ro \
   -v /home/slurm-jobs/.ssh/dvc_key:/root/.ssh/dvc_key:ro \
-  -v /home/richw/.code/latent-space:/root/.code/latent-space:ro \
+  -v "${DATA_MOUNT}:/root/.code/data:ro" \
   -v "${HOME}/.cache/uv:/root/.cache/uv" \
   ml-runner:latest bash -c '
+    # ── boilerplate: do not edit ──────────────────────────────
     export GIT_SSH_COMMAND="ssh -i /root/.ssh/github_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-    git clone --branch "$GIT_BRANCH" git@github.com:white-richard/latent-space.git /workspace
+    git clone --branch "$GIT_BRANCH" git@github.com:${GITHUB_REPO}.git /workspace
     cd /workspace
     git submodule update --init --recursive
-    fish setup.fish --dino
+    eval "$SETUP_CMD"
     source .venv/bin/activate
-    dvc remote add -d --local local-cache /root/.code/latent-space/.dvc/cache
-    dvc pull /root/.code/latent-space/datasets/cifar.dvc
+    dvc remote add -d --local local-cache /root/.code/data/.dvc/cache
+    dvc pull "$DVC_PULL_PATH"
     nvidia-smi
-    RUN_SCRIPT="${RUN_SCRIPT:-src/cifar_lightning/run.fish}"
+    # ── run training ─────────────────────────────────────────
+    [ -f "$RUN_SCRIPT" ] || RUN_SCRIPT="$DEFAULT_RUN_SCRIPT"
+    echo "=== Running: $RUN_SCRIPT ==="
     fish "$RUN_SCRIPT" --debug-mode
-    git config user.email "98299003+white-richard@users.noreply.github.com"
-    git config user.name "white-richard"
+    # ── push results ─────────────────────────────────────────
+    git config user.email "$GIT_USER_EMAIL"
+    git config user.name "$GIT_USER_NAME"
     git add out/ 2>/dev/null || true
     git diff --cached --quiet || git push origin HEAD
   '
