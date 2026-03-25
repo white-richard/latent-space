@@ -29,7 +29,8 @@ docker run --rm --gpus all \
     dvc remote add -d --local local-cache /root/.code/latent-space/.dvc/cache
     dvc pull /root/.code/latent-space/datasets/cifar.dvc
     nvidia-smi
-    fish src/cifar_lightning/run.fish --debug-mode
+    RUN_SCRIPT="${RUN_SCRIPT:-src/cifar_lightning/run.fish}"
+    fish "$RUN_SCRIPT" --debug-mode
     git config user.email "98299003+white-richard@users.noreply.github.com"
     git config user.name "white-richard"
     git add out/ 2>/dev/null || true
