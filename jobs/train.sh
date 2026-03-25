@@ -12,8 +12,6 @@ exec 1>/tmp/slurm-${SLURM_JOB_ID}.out
 exec 2>/tmp/slurm-${SLURM_JOB_ID}.err
 set -ex   # -x prints every command before executing it
 
-rm -rf /tmp/job-${SLURM_JOB_ID}
-
 export PATH="/home/richw/.local/bin:$PATH"
 
 REPO="git@github.com:white-richard/latent-space.git"
