@@ -39,6 +39,8 @@ echo "hi"
 dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
 dvc pull /home/richw/.code/latent-space/datasets/cifar.dvc
 
+echo "hi2"
+
 nvidia-smi
 
 rm -rf out
