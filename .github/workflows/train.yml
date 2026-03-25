@@ -19,7 +19,7 @@ jobs:
         run: |
           JOB_ID=$(GIT_BRANCH="${{ github.ref_name }}" \
             DVC_SSH_KEY="$DVC_SSH_KEY" \
-            sbatch --parsable jobs/train.sh)
+            sudo -u slurm-jobs sbatch --parsable jobs/train.sh)
           echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
           echo "Submitted Slurm job $JOB_ID"
 
