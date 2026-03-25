@@ -2,33 +2,38 @@ name: CML-Slurm-Train
 on: [push]
 
 jobs:
-  run:
-    runs-on: [self-hosted, slurm] # Runs on your head node
+  launch-runner:
+    runs-on: [self-hosted, slurm]
     steps:
-      - uses: iterative/setup-cml@v1
       - name: Launch Runner on Slurm
         env:
+          # Use your Personal Access Token here
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # This command tells CML to submit an sbatch job.
-          # Once Slurm allocates a node, CML starts a runner there.
+          # We call the globally installed cml binary directly
           cml runner launch \
             --labels=cml-gpu \
             --driver=slurm \
             --idle-timeout=300 \
-            --single # Runner disappears after 1 job
+            --single \
+            --slurm-args="--partition=all"
             
   train:
-    runs-on: [self-hosted, cml-gpu] # This matches the label above
+    needs: launch-runner
+    runs-on: [self-hosted, cml-gpu]
     steps:
-      - uses: actions/checkout@v4.2.2
+      - name: Checkout Code
+        # This is a GitHub-owned action, so it should be allowed
+        uses: actions/checkout@v4
+
       - name: Training
         run: |
-          ./jobs/train.py
+          python train.py
           
-          # Use CML to post the report
           echo "## Training Results" > report.md
-          cat out.metrics.json >> report.md
+          echo "Run on node: $(hostname)" >> report.md
+          
+          # If you can't use cml-send-comment action, use the cli:
           cml comment create report.md
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
