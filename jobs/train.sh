@@ -32,14 +32,11 @@ git submodule update --init --recursive
 # sudo chown -R richw:richw ~/.cache/uv
 # chmod -R 777 ~/.cache/uv
 uv venv --python 3.10
-echo "hi"
 /usr/bin/fish setup.fish --dino
 
 # 3. Pull data via DVC
 dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
 dvc pull /home/richw/.code/latent-space/datasets/cifar.dvc
-
-echo "hi2"
 
 nvidia-smi
 
