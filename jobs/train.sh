@@ -45,7 +45,6 @@ docker run --rm --device nvidia.com/gpu=all \
   -v "${DATA_MOUNT}:/root/.code/data:ro" \
   -v "${HOME}/.cache/uv:/root/.cache/uv" \
   ml-runner:latest bash -c '
-    # ── boilerplate: do not edit ──────────────────────────────
     export GIT_SSH_COMMAND="ssh -i /root/.ssh/github_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     git clone --branch "$GIT_BRANCH" git@github.com:${GITHUB_REPO}.git /workspace
     cd /workspace
@@ -53,7 +52,7 @@ docker run --rm --device nvidia.com/gpu=all \
     eval "$SETUP_CMD"
     source .venv/bin/activate
     dvc remote add -d --local local-cache /root/.code/data/.dvc/cache
-    dvc pull "$DVC_PULL_PATH"
+    dvc pull "$DATA_MOUNT/$DVC_PULL_PATH"
     nvidia-smi
     # ── run training ─────────────────────────────────────────
     [ -f "$RUN_SCRIPT" ] || RUN_SCRIPT="$DEFAULT_RUN_SCRIPT"
