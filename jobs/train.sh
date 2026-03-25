@@ -8,6 +8,7 @@
 #SBATCH --mem=28G
 #SBATCH --partition=all
 #SBATCH --account=
+#SBATCH --exclusive
 
 set -ex
 
