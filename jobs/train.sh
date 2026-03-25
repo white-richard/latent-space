@@ -12,6 +12,7 @@
 set -ex
 
 
+
 docker run --rm --gpus all \
   -e GIT_BRANCH="${GIT_BRANCH:-main}" \
   -e SLURM_JOB_ID="$SLURM_JOB_ID" \
