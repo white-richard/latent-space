@@ -9,7 +9,6 @@
 #SBATCH --partition=all
 #SBATCH --account=
 
-
 set -ex
 
 docker run --rm --gpus all \
