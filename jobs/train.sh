@@ -9,6 +9,8 @@
 #SBATCH --partition=all
 #SBATCH --account=
 
+export GIT_SSH_COMMAND="ssh -i /home/richw/.ssh/github_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
 set -ex   # -x prints every command before executing it
 
 mkdir -p ~/.ssh
