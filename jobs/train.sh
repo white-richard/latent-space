@@ -19,7 +19,7 @@ GITHUB_REPO="white-richard/latent-space"
 DATA_MOUNT="/home/richw/.code/latent-space"   # local data cache path on each machine
 RUN_SCRIPT="src/cifar_lightning/run.fish"
 SETUP_CMD="fish setup.fish --dino"
-DVC_PULL_PATH="datasets/cifar.dvc"            # set to "." to pull everything
+DVC_PULL_PATH="datasets/cifar.dvc"
 GIT_USER_EMAIL="98299003+white-richard@users.noreply.github.com"
 GIT_USER_NAME="white-richard"
 # ============================================================
