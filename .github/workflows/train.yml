@@ -4,13 +4,11 @@ on:
   push:
     branches: [main, 'expr/**']
   pull_request:
-concurrency:
-  group: train-${{ github.sha }}
-  cancel-in-progress: false
+
 jobs:
   train:
     runs-on: [self-hosted, slurm]
-    timeout-minutes: 1440
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -26,34 +24,5 @@ jobs:
           JOB_ID=$(GIT_BRANCH="$BRANCH" \
             RUN_SCRIPT="$RUN_SCRIPT" \
             sbatch --parsable jobs/train.sh)
-          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
-          echo "Submitted Slurm job $JOB_ID"
-
-      - name: Wait for job to complete
-        run: |
-          JOB_ID="${{ steps.submit.outputs.job_id }}"
-          echo "Waiting for job $JOB_ID..."
-
-          while true; do
-            STATE=$(scontrol show job "$JOB_ID" 2>/dev/null \
-              | grep -oP 'JobState=\K\S+' || echo "GONE")
-            echo "  State: $STATE"
-            case "$STATE" in
-              COMPLETED|GONE) echo "Done"; exit 0 ;;
-              COMPLETING)     sleep 10 ;;
-              FAILED|CANCELLED|TIMEOUT) exit 1 ;;
-              *) sleep 30 ;;
-            esac
-          done
-
-      - name: Publish CML report
-        if: github.event_name == 'pull_request'
-        env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "## Training Results" > report.md
-          cat out/metrics.txt >> report.md
-          for img in results/*.png results/*.jpg; do
-            [[ -f "$img" ]] && cml publish "$img" --md >> report.md
-          done
-          cml comment create report.md
+          echo "Submitted Slurm job $JOB_ID on $(hostname)"
+          echo "Monitor: squeue or cat /tmp/slurm-${JOB_ID}.err"
