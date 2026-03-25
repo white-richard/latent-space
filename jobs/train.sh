@@ -47,7 +47,6 @@ fish src/cifar_lightning/run.fish --debug-mode
 # dvc push -r wpeb-print
 git wave "good [skip ci]"
 
-
 # 6. Clean up
 rm -rf "$WORKDIR"
 
