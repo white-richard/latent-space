@@ -29,17 +29,18 @@ jobs:
 
           while true; do
             STATE=$(scontrol show job "$JOB_ID" 2>/dev/null \
-              | grep -oP 'JobState=\K\S+' || echo "UNKNOWN")
+              | grep -oP 'JobState=\K\S+' || echo "GONE")
             echo "  State: $STATE"
-
+          
             case "$STATE" in
               COMPLETED) echo "Job completed successfully"; exit 0 ;;
+              GONE)      echo "Job completed and purged from scheduler"; exit 0 ;;
               FAILED)    echo "Job failed"; exit 1 ;;
               CANCELLED) echo "Job was cancelled"; exit 1 ;;
               TIMEOUT)   echo "Job timed out"; exit 1 ;;
             esac
-
-            sleep 30
+          
+            sleep 5
           done
 
       - name: Publish CML report
