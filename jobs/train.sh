@@ -6,7 +6,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=28G
-#SBATCH --gres=gpu:1          # remove if job doesn't need a GPU
 #SBATCH --partition=all
 
 set -e
