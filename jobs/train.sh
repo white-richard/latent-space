@@ -11,16 +11,21 @@
 
 set -ex
 
-# Write DVC key to a temp file so it can be mounted into the container
-# (env vars mangle SSH key newlines; file mounts don't)
-DVC_KEY_FILE=$(mktemp)
+DVC_KEY_FILE=/home/slurm-jobs/.ssh/dvc_key_${SLURM_JOB_ID}
 echo "$DVC_SSH_KEY" > "$DVC_KEY_FILE"
 chmod 600 "$DVC_KEY_FILE"
+
+# ... docker run with:
+-v "$DVC_KEY_FILE":/root/.ssh/dvc_key:ro \
+
+# cleanup after:
+rm -f "$DVC_KEY_FILE"
 
 docker run --rm --gpus all \
   -e GIT_BRANCH="${GIT_BRANCH:-main}" \
   -e SLURM_JOB_ID="$SLURM_JOB_ID" \
   -v /home/richw/.ssh/github_deploy:/root/.ssh/github_deploy:ro \
+  -v /home/slurm-jobs/.ssh/github_deploy:/root/.ssh/github_deploy:ro \
   -v "$DVC_KEY_FILE":/root/.ssh/dvc_key:ro \
   -v $HOME/.cache/uv:/root/.cache/uv \
   ml-runner:latest bash -c '
