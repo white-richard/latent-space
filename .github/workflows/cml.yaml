@@ -10,16 +10,23 @@ jobs:
             issues: write
         defaults:
             run:
+                # Fail loudly
                 shell: bash -exo pipefail {0}
         steps:
+            # Clone the repo and cds into it
             - uses: actions/checkout@v3
             - name: Setup
               run: |
                   git submodule update --init --recursive
-                  echo "Current working directory: $(pwd)"
+
+                  # Permissions for UV so it can share cache
                   chmod -R 777 ~/.cache/uv
+
+                  # Install dependencies
                   uv venv --python 3.10
                   fish -c "source .venv/bin/activate.fish; fish setup.fish --dino"
+
+                  # Setup DVC remote and pull the required dataset
                   dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
                   dvc pull /root/.code/latent-space/datasets/cifar.dvc
 
@@ -28,26 +35,34 @@ jobs:
                   REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   nvidia-smi
+                  # Train model
                   fish -c "source .venv/bin/activate.fish; fish src/cifar_lightning/run.fish --debug-mode"
+
             - name: Create PR
+              # Runs only if training was successful
               if: success()
               env:
                   REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
+                  # Print results to report
+
                   echo "## Metrics" >> report.md
                   git fetch --prune --no-recurse-submodules
                   cat out/metrics.txt >> report.md
-                  # dvc metrics diff main --md >> report.md || echo "_no baseline to diff against_" >> report.md
+                  # Compares new results with Main's results
+                  dvc metrics diff main --md >> report.md || echo "_no baseline to diff against_" >> report.md
 
                   echo "## Plots" >> report.md
                   [ -f out/pacmap_emb.png ] && echo "![](./out/pacmap_emb.png)" >> report.md
                   [ -f out/umap_nn15_emb.png ] && echo "![](./out/umap_nn15_emb.png)" >> report.md
 
+                  # Add results and big files to DVC
                   dvc add out
                   git add out.dvc report.md .gitignore
                   dvc push -r wpeb-print
 
-                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID" --target-branch main
+                  # Create pull request with new changes and results
+                  cml pr create --branch="experiment/run-$GITHUB_RUN_ID" --target-branch main --body report.md
 
 # cml pr create
 # Global Options:
