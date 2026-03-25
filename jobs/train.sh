@@ -33,6 +33,8 @@ fish setup.fish --dino
 dvc remote add -d --local wpeb-print /home/richw/.code/latent-space/.dvc/cache
 dvc pull /root/.code/latent-space/datasets/cifar.dvc
 
+nvidia-smi
+
 # 4. Run training — adjust this to your entrypoint
 chmod +x src/cifar_lightning/run.fish
 ./src/cifar_lightning/run.fish --debug-mode
