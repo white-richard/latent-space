@@ -8,7 +8,7 @@ jobs:
       - uses: iterative/setup-cml@v1
       - name: Launch Runner on Slurm
         env:
-          REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # This command tells CML to submit an sbatch job.
           # Once Slurm allocates a node, CML starts a runner there.
