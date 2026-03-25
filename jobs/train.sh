@@ -10,7 +10,6 @@
 
 set -e
 
-
 REPO="git@github.com:white-richard/latent-space.git"
 BRANCH="${GIT_BRANCH:-main}"
 WORKDIR="/tmp/job-${SLURM_JOB_ID}"
