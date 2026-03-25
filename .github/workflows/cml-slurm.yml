@@ -10,7 +10,7 @@ jobs:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # We call the globally installed cml binary directly
-          cml runner launch \
+          npx @dvcorg/cml cml runner launch \
             --labels=cml-gpu \
             --cloud=slurm \
             --idle-timeout=300 \
