@@ -2,7 +2,7 @@ name: CML-Slurm-Train
 on: [push]
 
 jobs:
-  :
+  run:
     runs-on: [self-hosted, slurm] # Runs on your head node
     steps:
       - uses: iterative/setup-cml@v1
@@ -29,7 +29,7 @@ jobs:
           
           # Use CML to post the report
           echo "## Training Results" > report.md
-          cat metrics.json >> report.md
+          cat out.metrics.json >> report.md
           cml comment create report.md
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
