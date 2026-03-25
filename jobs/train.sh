@@ -11,6 +11,12 @@
 
 set -ex   # -x prints every command before executing it
 
+mkdir -p ~/.ssh
+echo "$DVC_SSH_KEY" > ~/.ssh/dvc_key
+chmod 600 ~/.ssh/dvc_key
+ssh-keyscan wpeb-print >> ~/.ssh/known_hosts 2>/dev/null
+dvc remote modify --local origin keyfile ~/.ssh/dvc_key
+
 export PATH="/home/richw/.local/bin:$PATH"
 
 REPO="git@github.com:white-richard/latent-space.git"
