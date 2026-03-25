@@ -10,6 +10,8 @@
 
 set -e
 
+export PATH="/home/richw/.local/bin:$PATH"
+
 REPO="git@github.com:white-richard/latent-space.git"
 BRANCH="${GIT_BRANCH:-main}"
 WORKDIR="/tmp/job-${SLURM_JOB_ID}"
@@ -23,8 +25,6 @@ cd "$WORKDIR"
 git submodule update --init --recursive
 
 # 2. Set up Python environment
-uv venv --python 3.10 .venv
-source ~/.venv/bin/activate
 fish setup.fish --dino
 
 # 3. Pull data via DVC
