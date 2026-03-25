@@ -25,6 +25,8 @@ GIT_USER_EMAIL="98299003+white-richard@users.noreply.github.com"
 GIT_USER_NAME="white-richard"
 # ============================================================
 
+BRANCH="${GIT_BRANCH:-main}"
+
 docker run --rm --device nvidia.com/gpu=all \
   -e GIT_BRANCH="$BRANCH" \
   -e SLURM_JOB_ID="$SLURM_JOB_ID" \
