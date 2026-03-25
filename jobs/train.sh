@@ -11,15 +11,11 @@
 
 set -ex
 
-DVC_KEY_FILE="/home/slurm-jobs/.ssh/dvc_key_${SLURM_JOB_ID}"
-echo "$DVC_SSH_KEY" > "$DVC_KEY_FILE"
-chmod 600 "$DVC_KEY_FILE"
-
 docker run --rm --gpus all \
   -e GIT_BRANCH="${GIT_BRANCH:-main}" \
   -e SLURM_JOB_ID="$SLURM_JOB_ID" \
   -v /home/slurm-jobs/.ssh/github_deploy:/root/.ssh/github_deploy:ro \
-  -v "${DVC_KEY_FILE}:/root/.ssh/dvc_key:ro" \
+  -v /home/slurm-jobs/.ssh/dvc_key:/root/.ssh/dvc_key:ro \
   -v "${HOME}/.cache/uv:/root/.cache/uv" \
   ml-runner:latest bash -c '
     chmod 600 /root/.ssh/github_deploy /root/.ssh/dvc_key
@@ -41,5 +37,4 @@ docker run --rm --gpus all \
     git diff --cached --quiet || git push origin HEAD
   '
 
-rm -f "$DVC_KEY_FILE"
 echo "=== Job $SLURM_JOB_ID complete ==="
