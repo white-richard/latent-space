@@ -41,8 +41,11 @@ dvc pull /home/richw/.code/latent-space/datasets/cifar.dvc
 
 nvidia-smi
 
+rm -rf out
+
 # 4. Run training — adjust this to your entrypoint
-fish src/cifar_lightning/run.fish --debug-mode
+# fish src/cifar_lightning/run.fish --debug-mode
+dvc repro
 
 # 5. Push results back via DVC
 dvc add out
