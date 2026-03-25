@@ -12,7 +12,8 @@
 
 set -ex
 
-docker run --rm --device nvidia.com/gpu=all \
+
+docker run --rm --gpus all \
   -e GIT_BRANCH="${GIT_BRANCH:-main}" \
   -e SLURM_JOB_ID="$SLURM_JOB_ID" \
   -v /home/slurm-jobs/.ssh/github_deploy:/root/.ssh/github_deploy:ro \
