@@ -2,10 +2,10 @@ name: CML-Slurm-Train
 on: [push]
 
 jobs:
-  launch-runner:
+  :
     runs-on: [self-hosted, slurm] # Runs on your head node
     steps:
-      - uses: iterative/setup-cml@v4.2.2
+      - uses: iterative/setup-cml@v1
       - name: Launch Runner on Slurm
         env:
           REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -22,7 +22,7 @@ jobs:
     needs: launch-runner
     runs-on: [self-hosted, cml-gpu] # This matches the label above
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - name: Training
         run: |
           ./jobs/train.py
