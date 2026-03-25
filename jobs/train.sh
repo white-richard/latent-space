@@ -17,18 +17,12 @@ set -ex
 # ============================================================
 GITHUB_REPO="white-richard/latent-space"
 DATA_MOUNT="/home/richw/.code/latent-space"   # local data cache path on each machine
-DEFAULT_RUN_SCRIPT="src/cifar_lightning/run.fish"
+RUN_SCRIPT="src/cifar_lightning/run.fish"
 SETUP_CMD="fish setup.fish --dino"
 DVC_PULL_PATH="datasets/cifar.dvc"            # set to "." to pull everything
 GIT_USER_EMAIL="98299003+white-richard@users.noreply.github.com"
 GIT_USER_NAME="white-richard"
 # ============================================================
-
-# Derive run script from branch name
-# expr/higher-lr → src/.../run_higher_lr.fish, falls back to DEFAULT_RUN_SCRIPT
-BRANCH="${GIT_BRANCH:-main}"
-SCRIPT_SUFFIX=$(echo "$BRANCH" | sed 's|expr/||' | tr '-' '_')
-RUN_SCRIPT="$(dirname $DEFAULT_RUN_SCRIPT)/run_${SCRIPT_SUFFIX}.fish"
 
 docker run --rm --device nvidia.com/gpu=all \
   -e GIT_BRANCH="$BRANCH" \
