@@ -17,6 +17,7 @@ export PATH="/home/slurm-jobs/.local/bin:/home/richw/.local/bin:/usr/local/bin:/
 # Force git to use the deploy key regardless of which user is running
 export GIT_SSH_COMMAND="ssh -i /home/slurm-jobs/.ssh/github_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
+
 REPO="git@github.com:white-richard/latent-space.git"
 BRANCH="${GIT_BRANCH:-main}"
 WORKDIR="/tmp/job-${SLURM_JOB_ID}"
