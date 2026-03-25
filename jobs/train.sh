@@ -27,6 +27,8 @@ cd "$WORKDIR"
 git submodule update --init --recursive
 
 # 2. Set up Python environment
+sudo chown -R richw:richw ~/.cache/uv
+chmod -R 777 ~/.cache/uv
 fish setup.fish --dino
 
 # 3. Pull data via DVC
