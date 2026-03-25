@@ -4,7 +4,9 @@ on:
   push:
     branches: [main, 'expr/**']
   pull_request:
-
+concurrency:
+  group: train-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   train:
     runs-on: [self-hosted, slurm]
