@@ -7,6 +7,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=28G
 #SBATCH --partition=all
+#SBATCH --account=
 
 set -ex   # -x prints every command before executing it
 
