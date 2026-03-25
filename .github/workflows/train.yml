@@ -1,0 +1,64 @@
+name: Train
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  train:
+    runs-on: [self-hosted, slurm]
+    timeout-minutes: 1440 # 24 hours — adjust to your longest expected job
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit job to Slurm
+        id: submit
+        run: |
+          # Pass the current branch so the job clones the right code
+          JOB_ID=$(GIT_BRANCH="${{ github.ref_name }}" \
+            sbatch --parsable jobs/train.sh)
+          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+          echo "Submitted Slurm job $JOB_ID"
+
+      - name: Wait for job to complete
+        run: |
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          echo "Waiting for job $JOB_ID..."
+
+          while true; do
+            STATE=$(scontrol show job "$JOB_ID" 2>/dev/null \
+              | grep -oP 'JobState=\K\S+' || echo "UNKNOWN")
+            echo "  State: $STATE"
+
+            case "$STATE" in
+              COMPLETED) echo "Job completed successfully"; exit 0 ;;
+              FAILED)    echo "Job failed"; exit 1 ;;
+              CANCELLED) echo "Job was cancelled"; exit 1 ;;
+              TIMEOUT)   echo "Job timed out"; exit 1 ;;
+            esac
+
+            sleep 30
+          done
+
+      - name: Publish CML report
+        if: github.event_name == 'pull_request'
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Build a markdown report — adjust paths to your actual outputs
+          echo "## Training Results" > report.md
+
+          if [[ -f results/metrics.json ]]; then
+            echo '```json' >> report.md
+            cat results/metrics.json >> report.md
+            echo '```' >> report.md
+          fi
+
+          # Publish any plots as images in the PR comment
+          for img in results/*.png results/*.jpg; do
+            [[ -f "$img" ]] && cml publish "$img" --md >> report.md
+          done
+
+          cml comment create report.md
