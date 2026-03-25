@@ -44,8 +44,7 @@ nvidia-smi
 rm -rf out
 
 # 4. Run training — adjust this to your entrypoint
-# fish src/cifar_lightning/run.fish --debug-mode
-dvc repro
+fish src/cifar_lightning/run.fish --debug-mode
 
 # 5. Push results back via DVC
 dvc add out
