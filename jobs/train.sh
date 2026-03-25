@@ -19,10 +19,6 @@ docker run --rm --gpus all \
   -v /home/slurm-jobs/.ssh/github_deploy:/root/.ssh/github_deploy:ro \
   -v /home/slurm-jobs/.ssh/dvc_key:/root/.ssh/dvc_key:ro \
   -v /home/richw/.code/latent-space:/root/.code/latent-space:ro \
-  --device /dev/nvidia0:/dev/nvidia0 \
-  --device /dev/nvidiactl:/dev/nvidiactl \
-  --device /dev/nvidia-uvm:/dev/nvidia-uvm \
-  --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
   -v "${HOME}/.cache/uv:/root/.cache/uv" \
   ml-runner:latest bash -c '
     chmod 600 /root/.ssh/github_deploy /root/.ssh/dvc_key
