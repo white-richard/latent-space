@@ -1,6 +1,26 @@
-[core]
-    autostage = true
-    remote = wpeb-print
 [cache]
     type = "hardlink,symlink"
     protected = true
+[core]
+    autostage = true
+    remote = wpeb-print
+
+['remote "home-server"']
+    url = ssh://home-server/home/richw/.code/latent-space/.dvc/cache
+    keyfile = /home/richiewhite/.ssh/id_ed25519
+
+['remote "home-desktop"']
+    url = ssh://home-desktop/home/richiewhite/.code/latent-space/.dvc/cache
+    keyfile = /home/richiewhite/.ssh/id_ed25519
+
+['remote "wpeb-mary"']
+    url = ssh://wpeb-mary/home/richw/.code/latent-space/.dvc/cache
+    keyfile = /home/richiewhite/.ssh/id_ed25519
+
+['remote "wpeb-print"']
+    url = ssh://wpeb-print/home/richw/.code/latent-space/.dvc/cache
+    keyfile = /home/richiewhite/.ssh/id_ed25519
+
+['remote "wpeb-server"']
+    url = ssh://wpeb-server/home/richw/.code/latent-space/.dvc/cache
+    keyfile = /home/richiewhite/.ssh/id_ed25519

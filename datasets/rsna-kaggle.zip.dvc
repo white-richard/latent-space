@@ -1,0 +1,5 @@
+outs:
+- md5: 94179aefcefcf67828b6caa12af00d94
+  size: 289930749967
+  hash: md5
+  path: rsna-kaggle.zip
