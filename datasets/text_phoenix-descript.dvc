@@ -1,0 +1,6 @@
+outs:
+- md5: 28e4f891b9fc3a171c8ae81cfa3f1463.dir
+  size: 285005464
+  nfiles: 3
+  hash: md5
+  path: text_phoenix-descript

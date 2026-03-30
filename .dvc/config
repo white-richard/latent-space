@@ -5,17 +5,14 @@
     autostage = true
     remote = wpeb-print
 
-['remote "home-server"']
-    url = ssh://home-server/home/richw/.code/latent-space/.dvc/cache
-
 ['remote "home-desktop"']
-    url = ssh://home-desktop/home/richiewhite/.code/latent-space/.dvc/cache
+    url = ssh://richiewhite@home-desktop/home/richiewhite/.code/latent-space/.dvc/cache
 
 ['remote "wpeb-mary"']
-    url = ssh://wpeb-mary/home/richw/.code/latent-space/.dvc/cache
+    url = ssh://richw@wpeb-mary/home/richw/.code/latent-space/.dvc/cache
 
 ['remote "wpeb-print"']
-    url = ssh://wpeb-print/home/richw/.code/latent-space/.dvc/cache
+    url = ssh://richw@wpeb-print/home/richw/.code/latent-space/.dvc/cache
 
 ['remote "wpeb-server"']
-    url = ssh://wpeb-server/home/richw/.code/latent-space/.dvc/cache
+    url = ssh://richw@wpeb-server/home/richw/.code/latent-space/.dvc/cache
