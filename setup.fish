@@ -1,10 +1,14 @@
 #!/usr/bin/env fish
-
 set -e VIRTUAL_ENV
 
+set python_version 3.10
 set latent_dir (dirname (status filename))
-
 set project_dir $PWD
+
+if not test -e .venv
+    uv venv --python $python_version 
+end
+source .venv/bin/activate.fish
 
 # Parse --dino flag
 set use_dino false
