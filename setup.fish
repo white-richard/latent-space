@@ -5,7 +5,7 @@ set python_version 3.10
 set latent_dir (dirname (status filename))
 set project_dir $PWD
 
-git -C $latent_dir pull
+git -C $latent_dir pull --recurse-submodules
 
 if not test -e .venv
     uv venv --python $python_version 
