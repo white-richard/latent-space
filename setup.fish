@@ -1,6 +1,8 @@
 #!/usr/bin/env fish
 set -e VIRTUAL_ENV
 
+git pull
+
 set python_version 3.10
 set latent_dir (dirname (status filename))
 set project_dir $PWD
