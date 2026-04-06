@@ -1,0 +1,6 @@
+outs:
+- md5: a823c3e30c9cd170560cb3aa70d63a82.dir
+  size: 139830588242
+  nfiles: 218844
+  hash: md5
+  path: tiled-rsna-mammoclip
