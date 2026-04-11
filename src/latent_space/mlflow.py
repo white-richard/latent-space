@@ -1,7 +1,7 @@
 import mlflow
 
 
-def setup(*, uri, experiment_name) -> None:
+def setup(*, experiment_name, uri: str = "https://100.121.43.41:5050") -> None:
     mlflow.set_tracking_uri(uri)
     mlflow.set_experiment(experiment_name)
     mlflow.config.enable_system_metrics_logging()
@@ -11,6 +11,7 @@ def setup(*, uri, experiment_name) -> None:
 def test_connection() -> None:
     mlflow.get_tracking_uri()
     mlflow.get_experiment_by_name("my-first-experiment")
+
 
 # # Wrap the training code in a MLflow run
 # with mlflow.start_run() as run:
