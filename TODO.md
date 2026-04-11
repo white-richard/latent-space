@@ -1,3 +1,0 @@
-- Split dependencies to optional subgroups
-- Something to be able to from home make sure that latent-space is up to date on the pulls but also the project is synced on the right branch but also send scripts to machine to run and also results/out is saved and synced?
-  - Need to think about how ill be able to monitor its progress from other machine 
