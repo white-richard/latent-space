@@ -39,8 +39,13 @@ def test_connection() -> None:
     _call_with_timeout(mlflow.get_experiment_by_name, "my-first-experiment")
 
 
-def log_model(model, name="model") -> None:
-    mlflow.pytorch.log_model(model, name=name, serialization_format="pt2")
+def log_model(model, input_example, name="model") -> None:
+    mlflow.pytorch.log_model(
+        model,
+        name=name,
+        serialization_format="pt2",
+        input_example=input_example,
+    )
 
 
 # # Wrap the training code in a MLflow run

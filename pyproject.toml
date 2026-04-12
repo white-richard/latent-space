@@ -18,6 +18,11 @@ classifiers = [
 "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
+  "mlflow>=3.0",
+  "timm>=1.0",
+  "torch>=2.0",
+  "torchvision>=0.15",
+  "tqdm>=4.0",
 ]
 
 # [project.urls]

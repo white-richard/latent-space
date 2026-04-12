@@ -115,6 +115,7 @@ def main() -> None:
 
     use_bfloat16 = True
     best_eval_acc = float("-inf")
+    sample_input = next(iter(train_loader))[0][:1].to(device)
 
     for epoch in trange(args.epochs):
         train_loss = train(model, train_loader, criterion, optimizer, device, use_bfloat16)
@@ -125,6 +126,7 @@ def main() -> None:
             mlflow_helper.log_model(
                 model,
                 name=f"checkpoint_{epoch}",
+                input_example=sample_input,
             )
 
         mlflow.log_metrics(
