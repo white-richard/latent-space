@@ -22,3 +22,5 @@ dvc
 dvc-ssh
 termcolor
 transformers
+mlflow
+nvidia-ml-py

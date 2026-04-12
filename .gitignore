@@ -9,6 +9,8 @@ events.out.tfevents.*
 CLAUDE.md
 tmp/
 mlflow.db
+mlflow/
+artifacts/
 
 build/
 dist/
