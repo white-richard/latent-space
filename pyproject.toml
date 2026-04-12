@@ -18,18 +18,39 @@ classifiers = [
 "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-  "mlflow>=3.0",
-  "timm>=1.0",
   "torch>=2.0",
   "torchvision>=0.15",
+  "numpy",
+  "pandas",
+  "opencv-python",
+  "matplotlib",
+  "scikit-learn",
+  "umap-learn",
   "tqdm>=4.0",
+  "jupyter",
+  "ipykernel",
+  "ollama",
+  "pacmap",
+  "timm>=1.0",
+  "einops",
+  "numba>=0.57",
+  "llvmlite>=0.40",
+  "lightning",
+  "rich",
+  "tensorboard",
+  "dvc",
+  "dvc-ssh",
+  "termcolor",
+  "transformers",
+  "mlflow>=3.0",
+  "nvidia-ml-py",
 ]
 
 # [project.urls]
 # "Homepage" = "https://github.com/facebookresearch/sam3"
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "ruff", "python-lsp-server"]
 dvc = ["dvc", "dvc-ssh"]
 dinov3 = [
   "ftfy",
@@ -43,3 +64,12 @@ dinov3 = [
 where = ["src"]
 include = ["latent_space"]
 # exclude = ["build*", "scripts*", "examples*", "tests"]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+torchvision = [{ index = "pytorch-cu128" }]

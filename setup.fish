@@ -30,19 +30,17 @@ for arg in $argv
 end
 
 if test "$use_dino" = true
-    uv sync --extra dev --extra dinov3 --project $latent_dir
+    uv sync --extra dev --extra dvc --extra dinov3 --project $latent_dir
 else
-    uv sync --extra dev --project $latent_dir
+    uv sync --extra dev --extra dvc --project $latent_dir
 end
+
+uv pip install -e $latent_dir
 
 if test "$use_pe" = true
 uv pip install -r $latent_dir/repos/pe/requirements.txt
 uv pip install -e $latent_dir/repos/pe
 end
-
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-uv pip install -r $latent_dir/requirements.txt
-uv pip install -e $latent_dir
 
 if test "$use_dino" = true
     uv pip install -e $latent_dir/repos/dinov3
