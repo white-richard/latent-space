@@ -98,7 +98,6 @@ def log_model(model, input_example, name="model") -> None:
     mlflow.pytorch.log_model(
         model,
         name=name,
-        serialization_format="pt2",
         input_example=input_example_device,
         signature=signature,
     )
