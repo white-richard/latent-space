@@ -84,16 +84,30 @@ def test_connection() -> None:
 
 
 def log_model(model, input_example, name="model") -> None:
-    dtype = np.dtype(str(input_example.dtype).replace("torch.", ""))
-    shape = tuple(input_example.shape)
+    input_example_cpu = input_example.detach().cpu()
+    dtype = np.dtype(str(input_example_cpu.dtype).replace("torch.", ""))
+    shape = tuple(input_example_cpu.shape)
     signature = ModelSignature(inputs=Schema([TensorSpec(dtype, shape)]))
-    mlflow.pytorch.log_model(
-        model,
-        name=name,
-        serialization_format="pt2",
-        input_example=input_example,
-        signature=signature,
-    )
+    try:
+        mlflow.pytorch.log_model(
+            model,
+            name=name,
+            serialization_format="pt2",
+            input_example=input_example_cpu,
+            signature=signature,
+        )
+    except Exception as exc:
+        warnings.warn(
+            f"PT2 export failed ({exc!r}). Falling back to standard PyTorch serialization.",
+            stacklevel=2,
+        )
+        mlflow.pytorch.log_model(
+            model,
+            name=name,
+            serialization_format="cloudpickle",
+            input_example=input_example_cpu,
+            signature=signature,
+        )
 
 
 # # Wrap the training code in a MLflow run
