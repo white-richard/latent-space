@@ -1,7 +1,11 @@
 import concurrent.futures
+import sys
 import warnings
 
 import mlflow
+import numpy as np
+from mlflow.models import ModelSignature
+from mlflow.types import Schema, TensorSpec
 
 _TIMEOUT = 30  # seconds
 
@@ -18,13 +22,53 @@ def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
             )
 
 
+class _TeeStream:
+    """Writes to both the original stream and a log file."""
+
+    def __init__(self, original, log_file) -> None:
+        self._original = original
+        self._file = log_file
+
+    def write(self, msg) -> None:
+        self._original.write(msg)
+        self._file.write(msg)
+        self._file.flush()
+
+    def flush(self) -> None:
+        self._original.flush()
+        self._file.flush()
+
+    def __getattr__(self, attr):
+        return getattr(self._original, attr)
+
+
 def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
     mlflow.set_tracking_uri(uri)
     _call_with_timeout(mlflow.set_experiment, experiment_name)
     mlflow.config.enable_system_metrics_logging()
     mlflow.config.set_system_metrics_sampling_interval(1)
 
-    # warn if nvidia-ml-py isn't installed in pip
+    # --- stdout/stderr capture ---
+    log_file = open("terminal_output.log", "w", buffering=1)
+    sys.stdout = _TeeStream(sys.__stdout__, log_file)
+    sys.stderr = _TeeStream(sys.__stderr__, log_file)
+
+    def _flush_and_log() -> None:
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        log_file.close()
+        if mlflow.active_run():
+            mlflow.log_artifact("terminal_output.log")
+
+    _original_exit = mlflow.ActiveRun.__exit__
+
+    def _patched_exit(self, *args):
+        _flush_and_log()
+        return _original_exit(self, *args)  # calls the real one, not itself
+
+    mlflow.ActiveRun.__exit__ = _patched_exit
+    # --- end stdout/stderr capture ---
+
     try:
         import pynvml
     except ImportError:
@@ -40,11 +84,15 @@ def test_connection() -> None:
 
 
 def log_model(model, input_example, name="model") -> None:
+    dtype = np.dtype(str(input_example.dtype).replace("torch.", ""))
+    shape = tuple(input_example.shape)
+    signature = ModelSignature(inputs=Schema([TensorSpec(dtype, shape)]))
     mlflow.pytorch.log_model(
         model,
         name=name,
         serialization_format="pt2",
         input_example=input_example,
+        signature=signature,
     )
 
 

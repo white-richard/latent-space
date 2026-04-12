@@ -123,11 +123,7 @@ def main() -> None:
 
         if eval_acc > best_eval_acc:
             best_eval_acc = eval_acc
-            mlflow_helper.log_model(
-                model,
-                name=f"checkpoint_{epoch}",
-                input_example=sample_input,
-            )
+            mlflow_helper.log_model(model, sample_input, name=f"checkpoint_{epoch}")
 
         mlflow.log_metrics(
             {"train_loss": train_loss, "test_loss": eval_loss, "test_acc": eval_acc},
