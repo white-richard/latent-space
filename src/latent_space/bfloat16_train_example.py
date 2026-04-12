@@ -135,7 +135,5 @@ if __name__ == "__main__":
     mlflow_helper.setup(experiment_name=experiment_name)
     mlflow_helper.test_connection()
 
-    mlflow_helper.clean_mlflow(experiment_name)
-
     with mlflow.start_run() as run:
         main()
