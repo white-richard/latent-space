@@ -21,6 +21,7 @@ def get_args():
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--data-dir", type=str, default="./datasets/cifar")
+    parser.add_argument("--debug", type=str, default="./datasets/cifar")
     return parser.parse_args()
 
 
