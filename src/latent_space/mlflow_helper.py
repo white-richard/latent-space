@@ -64,7 +64,7 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
 
     def _patched_exit(self, *args):
         _flush_and_log()
-        return _original_exit(self, *args)  # calls the real one, not itself
+        return _original_exit(self, *args)
 
     mlflow.ActiveRun.__exit__ = _patched_exit
     # --- end stdout/stderr capture ---
@@ -88,26 +88,20 @@ def log_model(model, input_example, name="model") -> None:
     dtype = np.dtype(str(input_example_cpu.dtype).replace("torch.", ""))
     shape = tuple(input_example_cpu.shape)
     signature = ModelSignature(inputs=Schema([TensorSpec(dtype, shape)]))
+
     try:
-        mlflow.pytorch.log_model(
-            model,
-            name=name,
-            serialization_format="pt2",
-            input_example=input_example_cpu,
-            signature=signature,
-        )
-    except Exception as exc:
-        warnings.warn(
-            f"PT2 export failed ({exc!r}). Falling back to standard PyTorch serialization.",
-            stacklevel=2,
-        )
-        mlflow.pytorch.log_model(
-            model,
-            name=name,
-            serialization_format="cloudpickle",
-            input_example=input_example_cpu,
-            signature=signature,
-        )
+        model_device = next(model.parameters()).device
+    except StopIteration:
+        model_device = input_example.device
+
+    input_example_device = input_example.detach().to(model_device)
+    mlflow.pytorch.log_model(
+        model,
+        name=name,
+        serialization_format="pt2",
+        input_example=input_example_device,
+        signature=signature,
+    )
 
 
 # # Wrap the training code in a MLflow run
