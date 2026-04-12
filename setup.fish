@@ -5,6 +5,8 @@ set python_version 3.10
 set latent_dir (dirname (status filename))
 set project_dir $PWD
 
+# dvc gc --workspace
+
 git submodule update --remote --recursive
 git -C $latent_dir pull --recurse-submodules
 
