@@ -8,6 +8,7 @@ from mlflow.models import ModelSignature
 from mlflow.types import Schema, TensorSpec
 
 _TIMEOUT = 30  # seconds
+_active_flush_fn = None
 
 
 def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
@@ -60,6 +61,9 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
         if mlflow.active_run():
             mlflow.log_artifact("terminal_output.log")
 
+    global _active_flush_fn
+    _active_flush_fn = _flush_and_log
+
     _original_exit = mlflow.ActiveRun.__exit__
 
     def _patched_exit(self, *args):
@@ -76,6 +80,16 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
             "nvidia-ml-py is not installed. GPU metrics will not be logged by MLflow.",
             stacklevel=2,
         )
+
+
+def end_run() -> None:
+    """Flush captured stdout/stderr logs and end the active MLflow run."""
+    global _active_flush_fn
+    if _active_flush_fn is not None:
+        _active_flush_fn()
+        _active_flush_fn = None
+    if mlflow.active_run():
+        mlflow.end_run()
 
 
 def test_connection() -> None:
