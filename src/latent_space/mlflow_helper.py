@@ -1,3 +1,4 @@
+import atexit
 import concurrent.futures
 import sys
 import warnings
@@ -59,18 +60,14 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
         sys.stderr = sys.__stderr__
         log_file.close()
         if mlflow.active_run():
-            mlflow.log_artifact("terminal_output.log")
+            try:
+                mlflow.log_artifact("terminal_output.log")
+            except Exception as exc:
+                warnings.warn(f"Failed to log terminal_output.log artifact: {exc}", stacklevel=2)
 
     global _active_flush_fn
     _active_flush_fn = _flush_and_log
-
-    _original_exit = mlflow.ActiveRun.__exit__
-
-    def _patched_exit(self, *args):
-        _flush_and_log()
-        return _original_exit(self, *args)
-
-    mlflow.ActiveRun.__exit__ = _patched_exit
+    atexit.register(end_run)
     # --- end stdout/stderr capture ---
 
     try:
@@ -85,9 +82,9 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
 def end_run() -> None:
     """Flush captured stdout/stderr logs and end the active MLflow run."""
     global _active_flush_fn
-    if _active_flush_fn is not None:
-        _active_flush_fn()
-        _active_flush_fn = None
+    fn, _active_flush_fn = _active_flush_fn, None
+    if fn is not None:
+        fn()
     if mlflow.active_run():
         mlflow.end_run()
 
