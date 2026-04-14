@@ -3,7 +3,9 @@ import argparse
 import mlflow
 import timm
 import torch
-from torch import nn, optim
+from timm.data.auto_augment import rand_augment_transform
+from timm.optim import create_optimizer_v2
+from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm, trange
@@ -80,7 +82,17 @@ def main() -> None:
     mlflow.log_params(vars(args))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    transform = transforms.Compose(
+    raug = rand_augment_transform("rand-m9-mstd0.5-inc1", {})
+    train_transform = transforms.Compose(
+        [
+            transforms.Resize((args.image_size, args.image_size)),
+            transforms.RandomHorizontalFlip(),
+            raug,
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ],
+    )
+    eval_transform = transforms.Compose(
         [
             transforms.Resize((args.image_size, args.image_size)),
             transforms.ToTensor(),
@@ -92,13 +104,13 @@ def main() -> None:
         root=args.data_dir,
         train=True,
         download=True,
-        transform=transform,
+        transform=train_transform,
     )
     test_dataset = datasets.CIFAR10(
         root=args.data_dir,
         train=False,
         download=True,
-        transform=transform,
+        transform=eval_transform,
     )
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
@@ -107,24 +119,27 @@ def main() -> None:
     model = timm.create_model(args.model_name, pretrained=True, num_classes=args.num_classes)
     model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(
-        model.parameters(),
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+
+    # Good for timm models, not all models
+    optimizer = create_optimizer_v2(
+        model,
+        opt="adamw",
         lr=args.learning_rate,
         weight_decay=args.weight_decay,
+        layer_decay=0.65,
     )
 
     use_bfloat16 = True
     best_eval_acc = float("-inf")
-    sample_input = next(iter(train_loader))[0][:1].to(device)
+    next(iter(train_loader))[0][:1].to(device)
 
     for epoch in trange(args.epochs):
         train_loss = train(model, train_loader, criterion, optimizer, device, use_bfloat16)
         eval_loss, eval_acc = evaluate(model, test_loader, criterion, device, use_bfloat16)
 
-        if eval_acc > best_eval_acc:
-            best_eval_acc = eval_acc
-            mlflow_helper.log_model(model, sample_input, name=f"checkpoint_{epoch}")
+        best_eval_acc = max(best_eval_acc, eval_acc)
+        # mlflow_helper.log_model(model, sample_input, name=f"checkpoint_{epoch}")
 
         mlflow.log_metrics(
             {"train_loss": train_loss, "test_loss": eval_loss, "test_acc": eval_acc},
@@ -133,7 +148,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    experiment_name = "Test Expr 2"
+    experiment_name = "Latent-space-testing"
     mlflow_helper.setup(experiment_name=experiment_name)
     mlflow_helper.test_connection()
 
