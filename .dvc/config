@@ -1,18 +1,15 @@
 [cache]
     type = "hardlink,symlink"
     protected = true
+    shared = group
 [core]
     autostage = true
     remote = wpeb-print
-
 ['remote "home-desktop"']
     url = ssh://richiewhite@home-desktop/home/richiewhite/.code/latent-space/.dvc/cache
-
 ['remote "wpeb-mary"']
     url = ssh://richw@wpeb-mary/home/richw/.code/latent-space/.dvc/cache
-
 ['remote "wpeb-print"']
     url = ssh://richw@wpeb-print/home/richw/.code/latent-space/.dvc/cache
-
 ['remote "wpeb-server"']
     url = ssh://richw@wpeb-server/home/richw/.code/latent-space/.dvc/cache
