@@ -1,8 +1,7 @@
 import atexit
 import concurrent.futures
-import os
+import pathlib
 import sys
-import traceback
 import warnings
 
 import mlflow
@@ -26,57 +25,34 @@ def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
             )
 
 
-class _TeeStream:
-    """Writes to both the original stream and a log file."""
+class Logger:
+    def __init__(self, filename) -> None:
+        self.terminal = sys.stdout
+        self.log = open(filename, "w")
 
-    def __init__(self, original, log_file) -> None:
-        self._original = original
-        self._file = log_file
-
-    def write(self, msg) -> None:
-        self._original.write(msg)
-        self._file.write(msg)
-        self._file.flush()
+    def write(self, message) -> None:
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
 
     def flush(self) -> None:
-        self._original.flush()
-        self._file.flush()
-
-    def __getattr__(self, attr):
-        return getattr(self._original, attr)
+        self.terminal.flush()
+        self.log.flush()
 
 
 def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
     mlflow.set_tracking_uri(uri)
     _call_with_timeout(mlflow.set_experiment, experiment_name)
-    mlflow.config.enable_system_metrics_logging()
+    mlflow.enable_system_metrics_logging()
     mlflow.config.set_system_metrics_sampling_interval(1)
 
     # --- stdout/stderr capture ---
-    log_path = os.path.abspath("terminal_output.log")
-    log_file = open(log_path, "w", buffering=1)
-    sys.stdout = _TeeStream(sys.__stdout__, log_file)
-    sys.stderr = _TeeStream(sys.__stderr__, log_file)
-
-    def _flush_and_log() -> None:
-        sys.stdout = sys.__stdout__
-        sys.stderr = sys.__stderr__
-        try:
-            log_file.close()
-        except Exception:
-            pass
-        if mlflow.active_run():
-            try:
-                mlflow.log_artifact(log_path)
-            except Exception:
-                sys.__stderr__.write(
-                    f"[mlflow_helper] Failed to log terminal_output.log:\n{traceback.format_exc()}\n"
-                )
-                sys.__stderr__.flush()
-
-    global _active_flush_fn
-    _active_flush_fn = _flush_and_log
-    atexit.register(end_run)
+    log_path = pathlib.Path("terminal_output.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True).resolve()
+    logger = Logger(log_path)
+    sys.stdout = logger
+    sys.stderr = logger
+    atexit.register(end_run, log_path)
     # --- end stdout/stderr capture ---
 
     try:
@@ -88,13 +64,9 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
         )
 
 
-def end_run() -> None:
-    """Flush captured stdout/stderr logs and end the active MLflow run."""
-    global _active_flush_fn
-    fn, _active_flush_fn = _active_flush_fn, None
-    if fn is not None:
-        fn()
+def end_run(terminal_log_path: str) -> None:
     if mlflow.active_run():
+        mlflow.log_artifact(terminal_log_path)
         mlflow.end_run()
 
 
