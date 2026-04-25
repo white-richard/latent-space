@@ -65,31 +65,14 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
             log_file.close()
         except Exception:
             pass
-        log_exists = os.path.exists(log_path)
-        log_size = os.path.getsize(log_path) if log_exists else -1
-        run = mlflow.active_run()
-        sys.__stderr__.write(
-            f"[mlflow_helper] _flush_and_log: log_path={log_path} exists={log_exists} size={log_size} run={run}\n"
-        )
-        sys.__stderr__.flush()
-        if run:
+        if mlflow.active_run():
             try:
-                artifact_uri = run.info.artifact_uri
-                sys.__stderr__.write(f"[mlflow_helper] artifact_uri={artifact_uri}\n")
-                sys.__stderr__.flush()
                 mlflow.log_artifact(log_path)
-                sys.__stderr__.write("[mlflow_helper] log_artifact succeeded\n")
-                sys.__stderr__.flush()
             except Exception:
                 sys.__stderr__.write(
-                    f"[mlflow_helper] log_artifact FAILED:\n{traceback.format_exc()}\n"
+                    f"[mlflow_helper] Failed to log terminal_output.log:\n{traceback.format_exc()}\n"
                 )
                 sys.__stderr__.flush()
-        else:
-            sys.__stderr__.write(
-                "[mlflow_helper] No active MLflow run — terminal_output.log NOT logged\n"
-            )
-            sys.__stderr__.flush()
 
     global _active_flush_fn
     _active_flush_fn = _flush_and_log
@@ -109,8 +92,6 @@ def end_run() -> None:
     """Flush captured stdout/stderr logs and end the active MLflow run."""
     global _active_flush_fn
     fn, _active_flush_fn = _active_flush_fn, None
-    sys.__stderr__.write(f"[mlflow_helper] end_run called, flush_fn={'set' if fn is not None else 'None'}, active_run={mlflow.active_run()}\n")
-    sys.__stderr__.flush()
     if fn is not None:
         fn()
     if mlflow.active_run():
