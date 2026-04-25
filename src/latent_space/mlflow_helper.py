@@ -1,6 +1,8 @@
 import atexit
 import concurrent.futures
+import os
 import sys
+import traceback
 import warnings
 
 import mlflow
@@ -51,19 +53,30 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
     mlflow.config.set_system_metrics_sampling_interval(1)
 
     # --- stdout/stderr capture ---
-    log_file = open("terminal_output.log", "w", buffering=1)
+    log_path = os.path.abspath("terminal_output.log")
+    log_file = open(log_path, "w", buffering=1)
     sys.stdout = _TeeStream(sys.__stdout__, log_file)
     sys.stderr = _TeeStream(sys.__stderr__, log_file)
 
     def _flush_and_log() -> None:
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
-        log_file.close()
+        try:
+            log_file.close()
+        except Exception:
+            pass
         if mlflow.active_run():
             try:
-                mlflow.log_artifact("terminal_output.log")
-            except Exception as exc:
-                warnings.warn(f"Failed to log terminal_output.log artifact: {exc}", stacklevel=2)
+                mlflow.log_artifact(log_path)
+            except Exception:
+                sys.__stderr__.write(
+                    f"[mlflow_helper] Failed to log terminal_output.log artifact:\n"
+                    f"{traceback.format_exc()}\n"
+                )
+        else:
+            sys.__stderr__.write(
+                "[mlflow_helper] No active MLflow run when trying to log terminal_output.log\n"
+            )
 
     global _active_flush_fn
     _active_flush_fn = _flush_and_log
