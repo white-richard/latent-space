@@ -74,6 +74,9 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
         sys.__stderr__.flush()
         if run:
             try:
+                artifact_uri = run.info.artifact_uri
+                sys.__stderr__.write(f"[mlflow_helper] artifact_uri={artifact_uri}\n")
+                sys.__stderr__.flush()
                 mlflow.log_artifact(log_path)
                 sys.__stderr__.write("[mlflow_helper] log_artifact succeeded\n")
                 sys.__stderr__.flush()
