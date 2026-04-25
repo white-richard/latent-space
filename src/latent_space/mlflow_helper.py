@@ -48,7 +48,7 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
 
     # --- stdout/stderr capture ---
     log_path = pathlib.Path("terminal_output.log")
-    log_path.parent.mkdir(parents=True, exist_ok=True).resolve()
+    log_path.resolve()
     logger = Logger(log_path)
     sys.stdout = logger
     sys.stderr = logger
