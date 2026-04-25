@@ -10,7 +10,6 @@ from mlflow.models import ModelSignature
 from mlflow.types import Schema, TensorSpec
 
 _TIMEOUT = 30  # seconds
-_active_flush_fn = None
 
 
 def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
@@ -40,7 +39,11 @@ class Logger:
         self.log.flush()
 
 
+_terminal_log_path = None
+
+
 def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
+    global _terminal_log_path
     mlflow.set_tracking_uri(uri)
     _call_with_timeout(mlflow.set_experiment, experiment_name)
     mlflow.enable_system_metrics_logging()
@@ -52,7 +55,8 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
     logger = Logger(log_path)
     sys.stdout = logger
     sys.stderr = logger
-    atexit.register(end_run, log_path)
+    _terminal_log_path = log_path
+    atexit.register(end_run)
     # --- end stdout/stderr capture ---
 
     try:
@@ -64,9 +68,11 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
         )
 
 
-def end_run(terminal_log_path: str) -> None:
+def end_run(terminal_log_path: str | None = None) -> None:
+    path_to_log = terminal_log_path or _terminal_log_path
     if mlflow.active_run():
-        mlflow.log_artifact(terminal_log_path)
+        if path_to_log is not None:
+            mlflow.log_artifact(path_to_log)
         mlflow.end_run()
 
 
