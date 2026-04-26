@@ -51,7 +51,7 @@ def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
 
     # --- stdout/stderr capture ---
     log_path = pathlib.Path("terminal_output.log")
-    log_path.resolve()
+    log_path = log_path.resolve()
     logger = Logger(log_path)
     sys.stdout = logger
     sys.stderr = logger
