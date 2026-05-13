@@ -42,7 +42,7 @@ _log_file = None
 _log_path = None
 
 
-def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
+def setup(*, experiment_name, uri: str = "http://100.100.16.25:5050") -> None:
     global _log_file, _log_path
     mlflow.set_tracking_uri(uri)
     _call_with_timeout(mlflow.set_experiment, experiment_name)
