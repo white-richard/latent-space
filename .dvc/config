@@ -1,10 +1,10 @@
 [cache]
     type = "hardlink,symlink"
-    protected = true
+    protected = false
     shared = group
 [core]
     autostage = true
-    remote = wpeb-print
+    remote = ankita
 ['remote "ankita"']
     url = ssh://richw@ankita/home/richw/.code/latent-space/.dvc/cache
 ['remote "home-desktop"']
