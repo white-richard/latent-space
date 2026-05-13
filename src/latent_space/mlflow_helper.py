@@ -85,8 +85,6 @@ def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
 
 def end_run() -> None:
     global _log_file, _log_path
-    if not mlflow.active_run():
-        return
     try:
         if _log_file is not None:
             sys.stdout.flush()
@@ -95,19 +93,20 @@ def end_run() -> None:
             sys.stderr = sys.__stderr__
             _log_file.close()
             _log_file = None
-            content = _log_path.read_text()
-            try:
-                mlflow.log_text(content, "terminal_output.log")
-            except Exception as e:
-                print(f"Warning: artifact upload failed ({type(e).__name__}: {e})", file=sys.stderr)
-                # Fall back: store the tail of the log as a run tag
+            if mlflow.active_run():
+                content = _log_path.read_text()
                 try:
-                    tail = content[-4000:] if len(content) > 4000 else content
-                    mlflow.set_tag("terminal_output_tail", tail)
-                except Exception:
-                    pass
+                    mlflow.log_text(content, "terminal_output.log")
+                except Exception as e:
+                    print(f"Warning: artifact upload failed ({type(e).__name__}: {e})", file=sys.stderr)
+                    try:
+                        tail = content[-4000:] if len(content) > 4000 else content
+                        mlflow.set_tag("terminal_output_tail", tail)
+                    except Exception:
+                        pass
     finally:
-        mlflow.end_run()
+        if mlflow.active_run():
+            mlflow.end_run()
 
 
 def test_connection() -> None:
