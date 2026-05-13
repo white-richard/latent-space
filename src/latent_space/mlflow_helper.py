@@ -2,7 +2,6 @@ import atexit
 import concurrent.futures
 import pathlib
 import sys
-import warnings
 
 import mlflow
 import numpy as np
@@ -24,55 +23,73 @@ def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
             )
 
 
-class Logger:
-    def __init__(self, filename) -> None:
-        self.terminal = sys.stdout
-        self.log = open(filename, "w")
+class _Tee:
+    def __init__(self, terminal, log_file) -> None:
+        self._terminal = terminal
+        self._log_file = log_file
 
-    def write(self, message) -> None:
-        self.terminal.write(message)
-        self.log.write(message)
-        self.log.flush()
+    def write(self, data) -> None:
+        self._terminal.write(data)
+        self._log_file.write(data)
+        self._log_file.flush()
 
     def flush(self) -> None:
-        self.terminal.flush()
-        self.log.flush()
+        self._terminal.flush()
+        self._log_file.flush()
 
 
-_terminal_log_path = None
+_log_file = None
+_log_path = None
 
 
 def setup(*, experiment_name, uri: str = "http://100.121.43.41:5050") -> None:
-    global _terminal_log_path
+    global _log_file, _log_path
     mlflow.set_tracking_uri(uri)
     _call_with_timeout(mlflow.set_experiment, experiment_name)
     mlflow.enable_system_metrics_logging()
     mlflow.config.set_system_metrics_sampling_interval(1)
 
-    # --- stdout/stderr capture ---
-    log_path = pathlib.Path("terminal_output.log")
-    log_path = log_path.resolve()
-    logger = Logger(log_path)
-    sys.stdout = logger
-    sys.stderr = logger
-    _terminal_log_path = log_path
+    _log_path = pathlib.Path("terminal_output.log").resolve()
+    _log_file = open(_log_path, "w", buffering=1)
+    sys.stdout = _Tee(sys.__stdout__, _log_file)
+    sys.stderr = _Tee(sys.__stderr__, _log_file)
     atexit.register(end_run)
-    # --- end stdout/stderr capture ---
 
     try:
-        import pynvml
+        import pynvml  # noqa: F401
     except ImportError:
+        import warnings
+
         warnings.warn(
             "nvidia-ml-py is not installed. GPU metrics will not be logged by MLflow.",
             stacklevel=2,
         )
 
 
-def end_run(terminal_log_path: str | None = None) -> None:
-    path_to_log = terminal_log_path or _terminal_log_path
-    if mlflow.active_run():
-        if path_to_log is not None:
-            mlflow.log_artifact(path_to_log)
+def end_run() -> None:
+    global _log_file, _log_path
+    if not mlflow.active_run():
+        return
+    try:
+        if _log_file is not None:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            _log_file.close()
+            _log_file = None
+            content = _log_path.read_text()
+            try:
+                mlflow.log_text(content, "terminal_output.log")
+            except Exception as e:
+                print(f"Warning: artifact upload failed ({type(e).__name__}: {e})", file=sys.stderr)
+                # Fall back: store the tail of the log as a run tag (always goes via REST API)
+                try:
+                    tail = content[-4000:] if len(content) > 4000 else content
+                    mlflow.set_tag("terminal_output_tail", tail)
+                except Exception:
+                    pass
+    finally:
         mlflow.end_run()
 
 
