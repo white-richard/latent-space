@@ -12,15 +12,16 @@ _TIMEOUT = 30  # seconds
 
 
 def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(fn, *args, **kwargs)
-        try:
-            return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            msg = f"MLflow call '{fn.__name__}' timed out after {timeout}s"
-            raise TimeoutError(
-                msg,
-            )
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False, cancel_futures=True)
+        msg = f"MLflow call '{fn.__name__}' timed out after {timeout}s"
+        raise TimeoutError(msg)
+    executor.shutdown(wait=False)
+    return result
 
 
 class _Tee:
