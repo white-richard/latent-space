@@ -9,4 +9,4 @@ set project_dir $PWD
 git submodule update --remote --recursive
 git -C $latent_dir pull --recurse-submodules
 
-uv sync --project $latent_dir $args
+uv sync --extra dvc --project $latent_dir $argv
