@@ -84,6 +84,24 @@ def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
         )
 
 
+def safe_log_metric(key: str, value: float, step: int | None = None) -> None:
+    if not mlflow.active_run():
+        return
+    try:
+        mlflow.log_metric(key, value, step=step)
+    except Exception as e:
+        print(f"Warning: MLflow log_metric failed ({type(e).__name__}): {e}", file=sys.stderr)
+
+
+def safe_log_metrics(metrics: dict, step: int | None = None) -> None:
+    if not mlflow.active_run():
+        return
+    try:
+        mlflow.log_metrics(metrics, step=step)
+    except Exception as e:
+        print(f"Warning: MLflow log_metrics failed ({type(e).__name__}): {e}", file=sys.stderr)
+
+
 def end_run() -> None:
     global _log_file, _log_path
     try:
