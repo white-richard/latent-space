@@ -99,7 +99,10 @@ def end_run() -> None:
                 try:
                     mlflow.log_text(content, "terminal_output.log")
                 except Exception as e:
-                    print(f"Warning: artifact upload failed ({type(e).__name__}: {e})", file=sys.stderr)
+                    print(
+                        f"Warning: artifact upload failed ({type(e).__name__}: {e})",
+                        file=sys.stderr,
+                    )
                     try:
                         tail = content[-4000:] if len(content) > 4000 else content
                         mlflow.set_tag("terminal_output_tail", tail)
