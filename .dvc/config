@@ -15,3 +15,5 @@
     url = ssh://richw@wpeb-print/home/richw/.code/latent-space/.dvc/cache
 ['remote "wpeb-server"']
     url = ssh://richw@wpeb-server/home/richw/.code/latent-space/.dvc/cache
+['remote "wpeb-desk"']
+    url = ssh://richw@wpeb-desk/home/richw/.code/latent-space/.dvc/cache
