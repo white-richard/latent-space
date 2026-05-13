@@ -42,7 +42,7 @@ _log_file = None
 _log_path = None
 
 
-def setup(*, experiment_name, uri: str = "http://100.100.16.25:5050") -> None:
+def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
     global _log_file, _log_path
     mlflow.set_tracking_uri(uri)
     _call_with_timeout(mlflow.set_experiment, experiment_name)
@@ -83,7 +83,7 @@ def end_run() -> None:
                 mlflow.log_text(content, "terminal_output.log")
             except Exception as e:
                 print(f"Warning: artifact upload failed ({type(e).__name__}: {e})", file=sys.stderr)
-                # Fall back: store the tail of the log as a run tag (always goes via REST API)
+                # Fall back: store the tail of the log as a run tag
                 try:
                     tail = content[-4000:] if len(content) > 4000 else content
                     mlflow.set_tag("terminal_output_tail", tail)
