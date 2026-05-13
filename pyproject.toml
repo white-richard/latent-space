@@ -53,13 +53,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "python-lsp-server"]
 dvc = ["dvc", "dvc-ssh"]
-dinov3 = [
-  "ftfy",
-  "omegaconf",
-  "regex",
-  "submitit",
-  "termcolor",
-]
+dinov3 = ["dinov3"]
+pe = ["perception_models"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -74,3 +69,5 @@ explicit = true
 [tool.uv.sources]
 torch = [{ index = "pytorch-cu128" }]
 torchvision = [{ index = "pytorch-cu128" }]
+dinov3 = { path = "repos/dinov3", editable = true }
+perception_models = { path = "repos/pe", editable = true }

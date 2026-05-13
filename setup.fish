@@ -1,7 +1,6 @@
 #!/usr/bin/env fish
 set -e VIRTUAL_ENV
 
-set python_version 3.10
 set latent_dir (dirname (status filename))
 set project_dir $PWD
 
@@ -10,40 +9,4 @@ set project_dir $PWD
 git submodule update --remote --recursive
 git -C $latent_dir pull --recurse-submodules
 
-if not test -e .venv
-    uv venv --python $python_version 
-end
-source .venv/bin/activate.fish
-
-# Parse --dino flag
-set use_dino false
-for arg in $argv
-    if test "$arg" = "--dino"
-        set use_dino true
-    end
-end
-
-# Parse --pe flag
-set use_pe false
-for arg in $argv
-    if test "$arg" = "--pe"
-        set use_pe true
-    end
-end
-
-if test "$use_dino" = true
-    uv sync --extra dev --extra dvc --extra dinov3 --project $latent_dir
-else
-    uv sync --extra dev --extra dvc --project $latent_dir
-end
-
-uv pip install -e $latent_dir
-
-if test "$use_pe" = true
-uv pip install -r $latent_dir/repos/pe/requirements.txt
-uv pip install -e $latent_dir/repos/pe
-end
-
-if test "$use_dino" = true
-    uv pip install -e $latent_dir/repos/dinov3
-end
+uv sync --project $latent_dir $args
