@@ -43,8 +43,18 @@ source .venv/bin/activate
 # Run Code
 # ==========================================
 
+SCRIPT=$1
+case "${SCRIPT##*.}" in
+    py)   INTERP="python" ;;
+    sh)   INTERP="sh" ;;
+    bash) INTERP="bash" ;;
+    fish) INTERP="fish" ;;
+    *)    echo "ERROR: Unknown script type '${SCRIPT##*.}'. Supported: .py, .sh, .bash, .fish"
+          exit 1 ;;
+esac
+
 echo "=========================================="
-echo "Executing: python $@"
+echo "Executing: $INTERP $@"
 echo "=========================================="
 
-python "$@"
+$INTERP "$@"
