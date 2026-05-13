@@ -40,20 +40,37 @@ class _Tee:
 
 _log_file = None
 _log_path = None
+_mlflow_enabled = False
+
+
+def is_enabled() -> bool:
+    return _mlflow_enabled
 
 
 def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
-    global _log_file, _log_path
-    mlflow.set_tracking_uri(uri)
-    _call_with_timeout(mlflow.set_experiment, experiment_name)
-    mlflow.enable_system_metrics_logging()
-    mlflow.config.set_system_metrics_sampling_interval(1)
+    global _log_file, _log_path, _mlflow_enabled
 
     _log_path = pathlib.Path("terminal_output.log").resolve()
     _log_file = open(_log_path, "w", buffering=1)
     sys.stdout = _Tee(sys.__stdout__, _log_file)
     sys.stderr = _Tee(sys.__stderr__, _log_file)
     atexit.register(end_run)
+
+    try:
+        mlflow.set_tracking_uri(uri)
+        _call_with_timeout(mlflow.set_experiment, experiment_name)
+        mlflow.enable_system_metrics_logging()
+        mlflow.config.set_system_metrics_sampling_interval(1)
+        _mlflow_enabled = True
+    except Exception as e:
+        print(
+            f"Warning: MLflow connection failed ({type(e).__name__}: {e}). "
+            "Continuing without MLflow tracking.",
+            file=sys.stderr,
+        )
+        mlflow.set_tracking_uri("")
+        _mlflow_enabled = False
+        return
 
     try:
         import pynvml  # noqa: F401
