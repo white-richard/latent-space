@@ -5,6 +5,8 @@
 [core]
     autostage = true
     remote = wpeb-print
+['remote "ankita"']
+    url = ssh://richw@ankita/home/richw/.code/latent-space/.dvc/cache
 ['remote "home-desktop"']
     url = ssh://richiewhite@home-desktop/home/richiewhite/.code/latent-space/.dvc/cache
 ['remote "wpeb-mary"']
