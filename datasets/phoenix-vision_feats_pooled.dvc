@@ -1,0 +1,6 @@
+outs:
+- md5: d626416634555df9d84138b450ddef49.dir
+  size: 2199769743
+  nfiles: 8260
+  hash: md5
+  path: phoenix-vision_feats_pooled

@@ -1,0 +1,6 @@
+outs:
+- md5: eccab57cbe78a6b8aca9c4b08739fe4d.dir
+  size: 802428621
+  nfiles: 3
+  hash: md5
+  path: phoenix-translations
