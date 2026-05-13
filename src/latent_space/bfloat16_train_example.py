@@ -1,6 +1,6 @@
 import argparse
+import sys
 
-import mlflow
 import timm
 import torch
 from timm.data.auto_augment import rand_augment_transform
@@ -9,8 +9,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm, trange
-
-from latent_space import mlflow_helper
 
 
 def get_args():
@@ -31,7 +29,7 @@ def train(model, train_loader, criterion, optimizer, device, use_bfloat16):
     model.train()
     running_loss = 0.0
 
-    for images, labels in tqdm(train_loader):
+    for images, labels in tqdm(train_loader, file=sys.stdout, mininterval=5.0, ascii=True):
         images, labels = images.to(device), labels.to(device)
 
         # Torch amp autocast for bfloat16
@@ -56,7 +54,7 @@ def evaluate(model, test_loader, criterion, device, use_bfloat16):
     total = 0
 
     with torch.no_grad():
-        for images, labels in tqdm(test_loader):
+        for images, labels in tqdm(test_loader, file=sys.stdout, mininterval=5.0, ascii=True):
             images, labels = images.to(device), labels.to(device)
 
             with torch.autocast(
@@ -79,7 +77,6 @@ def evaluate(model, test_loader, criterion, device, use_bfloat16):
 
 def main() -> None:
     args = get_args()
-    mlflow.log_params(vars(args))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     raug = rand_augment_transform("rand-m9-mstd0.5-inc1", {})
@@ -134,23 +131,12 @@ def main() -> None:
     best_eval_acc = float("-inf")
     next(iter(train_loader))[0][:1].to(device)
 
-    for epoch in trange(args.epochs):
-        train_loss = train(model, train_loader, criterion, optimizer, device, use_bfloat16)
-        eval_loss, eval_acc = evaluate(model, test_loader, criterion, device, use_bfloat16)
+    for _epoch in trange(args.epochs, file=sys.stdout, mininterval=5.0, ascii=True):
+        train(model, train_loader, criterion, optimizer, device, use_bfloat16)
+        _eval_loss, eval_acc = evaluate(model, test_loader, criterion, device, use_bfloat16)
 
         best_eval_acc = max(best_eval_acc, eval_acc)
-        # mlflow_helper.log_model(model, sample_input, name=f"checkpoint_{epoch}")
-
-        mlflow.log_metrics(
-            {"train_loss": train_loss, "test_loss": eval_loss, "test_acc": eval_acc},
-            step=epoch,
-        )
 
 
 if __name__ == "__main__":
-    experiment_name = "Latent-space-testing"
-    mlflow_helper.setup(experiment_name=experiment_name)
-    mlflow_helper.test_connection()
-
-    with mlflow.start_run() as run:
-        main()
+    main()
