@@ -1,6 +1,5 @@
 import atexit
 import concurrent.futures
-import pathlib
 import sys
 
 import mlflow
@@ -24,23 +23,6 @@ def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
     return result
 
 
-class _Tee:
-    def __init__(self, terminal, log_file) -> None:
-        self._terminal = terminal
-        self._log_file = log_file
-
-    def write(self, data) -> None:
-        self._terminal.write(data)
-        self._log_file.write(data)
-        self._log_file.flush()
-
-    def flush(self) -> None:
-        self._terminal.flush()
-        self._log_file.flush()
-
-
-_log_file = None
-_log_path = None
 _mlflow_enabled = False
 
 
@@ -49,12 +31,8 @@ def is_enabled() -> bool:
 
 
 def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
-    global _log_file, _log_path, _mlflow_enabled
+    global _mlflow_enabled
 
-    _log_path = pathlib.Path("terminal_output.log").resolve()
-    _log_file = open(_log_path, "w", buffering=1)
-    sys.stdout = _Tee(sys.__stdout__, _log_file)
-    sys.stderr = _Tee(sys.__stderr__, _log_file)
     atexit.register(end_run)
 
     try:
@@ -103,32 +81,8 @@ def safe_log_metrics(metrics: dict, step: int | None = None) -> None:
 
 
 def end_run() -> None:
-    global _log_file, _log_path
-    try:
-        if _log_file is not None:
-            sys.stdout.flush()
-            sys.stderr.flush()
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-            _log_file.close()
-            _log_file = None
-            if mlflow.active_run():
-                content = _log_path.read_text()
-                try:
-                    mlflow.log_text(content, "terminal_output.log")
-                except Exception as e:
-                    print(
-                        f"Warning: artifact upload failed ({type(e).__name__}: {e})",
-                        file=sys.stderr,
-                    )
-                    try:
-                        tail = content[-4000:] if len(content) > 4000 else content
-                        mlflow.set_tag("terminal_output_tail", tail)
-                    except Exception:
-                        pass
-    finally:
-        if mlflow.active_run():
-            mlflow.end_run()
+    if mlflow.active_run():
+        mlflow.end_run()
 
 
 def test_connection() -> None:
