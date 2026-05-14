@@ -3,11 +3,8 @@ import concurrent.futures
 import sys
 
 import mlflow
-import numpy as np
-from mlflow.models import ModelSignature
-from mlflow.types import Schema, TensorSpec
 
-_TIMEOUT = 30  # seconds
+_TIMEOUT = 20  # seconds
 
 
 def _call_with_timeout(fn, *args, timeout=_TIMEOUT, **kwargs) -> any:
@@ -39,22 +36,6 @@ def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
         mlflow.set_tracking_uri(uri)
         client = mlflow.MlflowClient()
         exp = _call_with_timeout(client.get_experiment_by_name, experiment_name)
-        if exp is not None and not exp.artifact_location.startswith("mlflow-artifacts"):
-            # Experiment was created before the artifact proxy was configured.
-            # Rename it to free up the name so a fresh experiment with the correct
-            # mlflow-artifacts:/ URI can be created.
-            # MLflow can only rename active experiments, so restore it first if deleted.
-            if exp.lifecycle_stage != "active":
-                _call_with_timeout(client.restore_experiment, exp.experiment_id)
-            legacy_name = f"{experiment_name}_legacy_{exp.experiment_id}"
-            print(
-                f"[mlflow] renaming experiment '{experiment_name}' → '{legacy_name}' "
-                f"(had local artifact_location='{exp.artifact_location}'); "
-                "recreating with mlflow-artifacts:/ URI",
-                file=sys.stderr,
-            )
-            _call_with_timeout(client.rename_experiment, exp.experiment_id, legacy_name)
-            exp = None
         if exp is None:
             _call_with_timeout(
                 client.create_experiment,
@@ -107,47 +88,3 @@ def safe_log_metrics(metrics: dict, step: int | None = None) -> None:
 def end_run() -> None:
     if mlflow.active_run():
         mlflow.end_run()
-
-
-def test_connection() -> None:
-    mlflow.get_tracking_uri()
-    _call_with_timeout(mlflow.get_experiment_by_name, "my-first-experiment")
-
-
-def log_model(model, input_example, name="model") -> None:
-    input_example_cpu = input_example.detach().cpu()
-    dtype = np.dtype(str(input_example_cpu.dtype).replace("torch.", ""))
-    shape = tuple(input_example_cpu.shape)
-    signature = ModelSignature(inputs=Schema([TensorSpec(dtype, shape)]))
-
-    try:
-        model_device = next(model.parameters()).device
-    except StopIteration:
-        model_device = input_example.device
-
-    input_example_device = input_example.detach().to(model_device)
-    mlflow.pytorch.log_model(
-        model,
-        name=name,
-        input_example=input_example_device,
-        signature=signature,
-    )
-
-
-# # Wrap the training code in a MLflow run
-# with mlflow.start_run() as run:
-
-# # Log training parameters
-# mlflow.log_params(params)
-
-# mlflow.log_metrics(
-#     {"batch_loss": batch_loss, "batch_accuracy": batch_acc},
-#     step=epoch * len(train_loader) + batch_idx,
-# )
-# mlflow.pytorch.log_model(model, name=f"checkpoint_{epoch}")
-# # View results
-# # mlflow server --port 5000
-# # Load the final model
-# model = mlflow.pytorch.load_model("runs:/<run_id>/final_model")
-# # Resume the previous run to log test metrics
-# with mlflow.start_run(run_id=run.info.run_id) as run:
