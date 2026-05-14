@@ -37,7 +37,15 @@ def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
 
     try:
         mlflow.set_tracking_uri(uri)
-        _call_with_timeout(mlflow.set_experiment, experiment_name)
+        client = mlflow.MlflowClient()
+        exp = _call_with_timeout(client.get_experiment_by_name, experiment_name)
+        if exp is None:
+            _call_with_timeout(
+                client.create_experiment,
+                experiment_name,
+                artifact_location="mlflow-artifacts:/",
+            )
+        mlflow.set_experiment(experiment_name)
         mlflow.enable_system_metrics_logging()
         mlflow.config.set_system_metrics_sampling_interval(1)
         _mlflow_enabled = True
