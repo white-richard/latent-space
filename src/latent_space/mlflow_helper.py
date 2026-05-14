@@ -39,6 +39,16 @@ def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
         mlflow.set_tracking_uri(uri)
         client = mlflow.MlflowClient()
         exp = _call_with_timeout(client.get_experiment_by_name, experiment_name)
+        if exp is not None and not exp.artifact_location.startswith("mlflow-artifacts"):
+            # Experiment was created before the artifact proxy was configured.
+            # Archive it so a fresh one with the correct URI is created below.
+            print(
+                f"[mlflow] archiving experiment '{experiment_name}' (artifact_location="
+                f"'{exp.artifact_location}') and recreating with mlflow-artifacts:/ URI",
+                file=sys.stderr,
+            )
+            _call_with_timeout(client.delete_experiment, exp.experiment_id)
+            exp = None
         if exp is None:
             _call_with_timeout(
                 client.create_experiment,
