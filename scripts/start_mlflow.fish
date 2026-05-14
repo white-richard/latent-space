@@ -1,6 +1,7 @@
 mlflow server \
     --backend-store-uri sqlite:////home/richw/.code/latent-space/mlflow.db \
-    --default-artifact-root /home/richw/.code/latent-space/artifacts \
+    --default-artifact-root mlflow-artifacts:/ \
+    --artifacts-destination /home/richw/.code/latent-space/artifacts \
     --host 0.0.0.0 \
     --port 5050 \
     --serve-artifacts \
