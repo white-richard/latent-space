@@ -41,8 +41,11 @@ def setup(*, experiment_name, uri: str = "http://172.20.199.236:5050") -> None:
         exp = _call_with_timeout(client.get_experiment_by_name, experiment_name)
         if exp is not None and not exp.artifact_location.startswith("mlflow-artifacts"):
             # Experiment was created before the artifact proxy was configured.
-            # Rename it (delete leaves the row, breaking the UNIQUE constraint) so a
-            # fresh experiment with the correct mlflow-artifacts:/ URI can be created.
+            # Rename it to free up the name so a fresh experiment with the correct
+            # mlflow-artifacts:/ URI can be created.
+            # MLflow can only rename active experiments, so restore it first if deleted.
+            if exp.lifecycle_stage != "active":
+                _call_with_timeout(client.restore_experiment, exp.experiment_id)
             legacy_name = f"{experiment_name}_legacy_{exp.experiment_id}"
             print(
                 f"[mlflow] renaming experiment '{experiment_name}' → '{legacy_name}' "
