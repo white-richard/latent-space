@@ -1,28 +1,19 @@
 # Latent Space
 
-Lightly organized machine learning code I've written or gathered, along with a substantial amount of third‑party code. 
+Lightly organized machine learning code I've written or gathered, along with a substantial amount of third‑party code.
 
 ## Installation
 
-### How to clone
-
-```bash
-git clone --recurse-submodules git@github.com:white-richard/latent-space.git
-```
-
-If it is already cloned:
+Clone nested repos:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-### Installation
-
 Set up a virtual environment (I recommended [`uv`](https://docs.astral.sh/uv/)):
 
 ```bash
 uv venv --python 3.10
-source .venv/bin/activate
 ```
 
 If you're using `fish`, you can run:
