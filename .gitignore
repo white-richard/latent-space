@@ -12,6 +12,7 @@ tmp/
 mlflow.db
 mlflow/
 artifacts/
+datasets/EMBED
 
 build/
 dist/
