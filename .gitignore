@@ -13,6 +13,8 @@ mlflow.db
 mlflow/
 artifacts/
 datasets/embed
+datasets/
+model_weights/
 
 build/
 dist/
